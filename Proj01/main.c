@@ -14,10 +14,11 @@ typedef struct node{
 
 node ReadTable(char * filename){
 	FILE *fp;
-	char *aux, *linha, *prefix;
+	char *aux, linha[BUFFSIZE], prefix[BITSIZE + 1];
 	int hop, n;
+	link root;
 	
-	fp = fopen(filename);
+	fp = fopen(filename, "r");
 	if (fp == NULL){
 		printf("File not found\n");
 		exit(1);
@@ -39,11 +40,12 @@ node ReadTable(char * filename){
 		// AddPrefix()?
 		aux = fgets(linha, BUFFSIZE, fp);
 	}
+	return root;
 }
 
 void AddPrefix(link self, char * prefix, int hop){	
 	switch (prefix[0]){
-		case '\n':
+		case '\0':
 			// All out of bits
 			self->hop = hop;
 			break;
@@ -66,7 +68,6 @@ void AddPrefix(link self, char * prefix, int hop){
 			printf("Unsupported prefix. Not binary.\n");
 			// There should be a memory verification here.
 			exit(1);
-			break;
 	}
 }
 
