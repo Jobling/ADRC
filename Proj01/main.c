@@ -12,7 +12,37 @@ typedef struct node{
 	link right;
 } node;
 
-node ReadTable(char * filename){
+void AddPrefix(link self, char * prefix, int hop){	
+	switch (prefix[0]){
+		case '\0':
+			// All out of bits
+			self->hop = hop;
+			break;
+		case '0':
+			// This bit points left
+			if (self->left == NULL){
+				self->left = (link) malloc(sizeof(node));
+			}
+			prefix++;
+			AddPrefix(self->left, prefix, hop);
+			break;
+		case '1':
+			// This bit points right
+			if(self->right == NULL){
+				self->right = (link) malloc(sizeof(node));
+			}
+			prefix++;
+			AddPrefix(self->right, prefix, hop);
+			break;
+		default:
+			// Not interpreted as a bit
+			printf("Unsupported prefix. Not binary.\n");
+			// There should be a memory verification here.
+			exit(1);
+	}
+}
+
+link ReadTable(char * filename){
 	FILE *fp;
 	link root;
 	char *aux, linha[BUFFSIZE], prefix[BITSIZE + 1];
@@ -49,36 +79,6 @@ node ReadTable(char * filename){
 		aux = fgets(linha, BUFFSIZE, fp);
 	}
 	return root;
-}
-
-void AddPrefix(link self, char * prefix, int hop){	
-	switch (prefix[0]){
-		case '\0':
-			// All out of bits
-			self->hop = hop;
-			break;
-		case '0':
-			// This bit points left
-			if (self->left == NULL){
-				self->left = (link) malloc(sizeof(node));
-			}
-			prefix++;
-			AddPrefix(self->left, prefix, hop);
-			break;
-		case '1':
-			// This bit points right
-			if(self->right == NULL){
-				self->right = (link) malloc(sizeof(node));
-			}
-			prefix++;
-			AddPrefix(self->right, prefix, hop);
-			break;
-		default:
-			// Not interpreted as a bit
-			printf("Unsupported prefix. Not binary.\n");
-			// There should be a memory verification here.
-			exit(1);
-	}
 }
 
 void DeletePrefix(link root, char * prefix);
