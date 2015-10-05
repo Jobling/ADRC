@@ -22,6 +22,7 @@ void AddPrefix(link self, char * prefix, int hop){
 			// This bit points left
 			if (self->left == NULL){
 				self->left = (link) malloc(sizeof(node));
+				self->left->hop = 0;
 			}
 			prefix++;
 			AddPrefix(self->left, prefix, hop);
@@ -30,6 +31,7 @@ void AddPrefix(link self, char * prefix, int hop){
 			// This bit points right
 			if(self->right == NULL){
 				self->right = (link) malloc(sizeof(node));
+				self->right->hop = 0;
 			}
 			prefix++;
 			AddPrefix(self->right, prefix, hop);
@@ -82,9 +84,49 @@ link ReadTable(char * filename){
 }
 
 void DeletePrefix(link root, char * prefix);
-void PrintTable(link root);
+
+void PrintTable(link self, char prefix[BITSIZE + 1], int level){
+	if(level == 0) printf("*%12d\n", self->hop);
+	else 
+		if(self->hop != 0) printf("%s%12d\n", prefix, self->hop);
+
+	if(self->left != NULL){
+		prefix[level] = '0';
+		level++;
+		PrintTable(self->left, prefix, level);
+		level--;
+	}
+	if(self->right != NULL){
+		prefix[level] = '1';
+		level++;
+		PrintTable(self->right, prefix, level);
+		level--;
+	}
+	
+	prefix[level] = '\0';
+	return;
+}
+
 void TwoTree(link root);
 int AddressLookUp(char * prefix);
 
 int main(int argc, char **argv){
+	char filename[8];
+	link root;
+	char prefix[BITSIZE + 1];
+	memset(prefix, '\0', BITSIZE + 1);
+	
+	if(argc == 1){
+		printf("Missing file argument\n");
+		exit(1);
+	}
+	
+	sscanf(argv[1], "%s", filename);
+	
+	root = ReadTable(filename);
+	PrintTable(root, prefix, 0);
+	
+	
+exit(0);
 }
+
