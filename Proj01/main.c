@@ -14,6 +14,7 @@ typedef struct node{
 
 node ReadTable(char * filename){
 	FILE *fp;
+	link root;
 	char *aux, *linha, *prefix;
 	int hop, n;
 	
@@ -22,12 +23,23 @@ node ReadTable(char * filename){
 		printf("File not found\n");
 		exit(1);
 	}
+	
 	aux = fgets(linha, BUFFSIZE, fp);
 	if (aux == NULL){
 		printf("Failed to read the file\n");
 		exit(1);
 	}
-	// Create tree, with empty prefix (*)
+	
+	// Creating tree with empty prefix (*). It's next-hop value will be -1
+	root = (link) malloc(sizeof(node));
+	root->hop = -1;
+	root->left = NULL;
+	root->right = NULL;
+	
+	// Inicializar variáveis na memória (?)
+	linha = (char *) malloc(BUFFSIZE * sizeof(char));
+	prefix = (char *) malloc(BITSIZE * sizeof(char));
+	
 	while(aux != NULL){
 		n = sscanf(linha, "%s %d", prefix, &hop);
 		// Here we assume the prefix already comes in a binary form.
@@ -36,9 +48,10 @@ node ReadTable(char * filename){
 			printf("Invalid file format\n");
 			exit(1);
 		}
-		// AddPrefix()?
+		AddPrefix(root, prefix, hop);
 		aux = fgets(linha, BUFFSIZE, fp);
 	}
+	return root;
 }
 
 void AddPrefix(link self, char * prefix, int hop){	
@@ -52,14 +65,16 @@ void AddPrefix(link self, char * prefix, int hop){
 			if (self->left == NULL){
 				self->left = (link) malloc(sizeof(node));
 			}
-			AddPrefix(self->left, prefix++, hop);
+			prefix++;
+			AddPrefix(self->left, prefix, hop);
 			break;
 		case '1':
 			// This bit points right
 			if(self->right == NULL){
 				self->right = (link) malloc(sizeof(node));
 			}
-			AddPrefix(self->right, prefix++, hop);
+			prefix++;
+			AddPrefix(self->right, prefix, hop);
 			break;
 		default:
 			// Not interpreted as a bit
@@ -70,10 +85,10 @@ void AddPrefix(link self, char * prefix, int hop){
 	}
 }
 
-void DeletePrefix(link root, char prefix);
+void DeletePrefix(link root, char * prefix);
 void PrintTable(link root);
 void TwoTree(link root);
-int AddressLookUp(char prefix);
+int AddressLookUp(char * prefix);
 
 int main(int argc, char **argv){
 }
