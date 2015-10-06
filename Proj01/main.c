@@ -17,12 +17,13 @@ typedef struct node{
 void PrintInterface(){
 	printf("\n");
 	printf("-------------------------------------------------------\n");
-	printf("[COMMAND]		- [ARGUMENTS]\n");
-	printf("[AddPrefix]		- [Prefix (binary)] [Hop (int)]\n");
-	printf("[DeletePrefix]	- [Prefix (binary)]\n");
-	printf("[PrintTable]	- [NULL]\n");
-	printf("[TwoTree]		- [NULL]\n");
-	printf("[AddressLookUp] - [Prefix (binary)]\n");
+	printf("[COMMAND]\t\t- [ARGUMENTS]\n");
+	printf("-------------------------------------------------------\n");
+	printf("[AddPrefix]\t\t- [Prefix (binary)] [Hop (int)]\n");
+	printf("[DeletePrefix]\t\t- [Prefix (binary)]\n");
+	printf("[PrintTable]\t- [NULL]\n");
+	printf("[TwoTree]\t\t- [NULL]\n");
+	printf("[AddressLookUp]\t- [Prefix (binary)]\n");
 	printf("[HELP]\n");
 	printf("[EXIT]\n");
 	printf("-------------------------------------------------------\n");
