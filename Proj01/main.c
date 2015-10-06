@@ -86,9 +86,9 @@ link ReadTable(char * filename){
 void DeletePrefix(link root, char * prefix);
 
 void PrintTable(link self, char prefix[BITSIZE + 1], int level){
-	if(level == 0) printf("%-BITSIZEs%4d\n", "*", self->hop);
+	if(level == 0) printf("%*c%4d\n", -BITSIZE, '*', self->hop);
 	else 
-		if(self->hop != 0) printf("%-BITSIZEs%4d\n", prefix, self->hop);
+		if(self->hop != 0) printf("%*s%4d\n", -BITSIZE, prefix, self->hop);
 
 	if(self->left != NULL){
 		prefix[level] = '0';
