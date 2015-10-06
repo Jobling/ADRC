@@ -5,6 +5,7 @@
 #define BITSIZE 8
 #define BUFFSIZE 16
 
+// Definição de estruturas de dados
 typedef struct node * link;
 typedef struct node{
 	int hop; 
@@ -12,6 +13,11 @@ typedef struct node{
 	link right;
 } node;
 
+// Funções auxiliares
+void PrintInterface();
+void MemoryCheck(link self);
+
+// Funções relacionadas com a árvore
 void AddPrefix(link self, char * prefix, int hop){	
 	switch (prefix[0]){
 		case '\0':
@@ -43,7 +49,6 @@ void AddPrefix(link self, char * prefix, int hop){
 			exit(1);
 	}
 }
-
 link ReadTable(char * filename){
 	FILE *fp;
 	link root;
@@ -80,11 +85,41 @@ link ReadTable(char * filename){
 		AddPrefix(root, prefix, hop);
 		aux = fgets(linha, BUFFSIZE, fp);
 	}
+	
+	fclose(fp);
 	return root;
 }
-
-void DeletePrefix(link root, char * prefix);
-
+void DeletePrefix(link self, char * prefix){
+	switch (prefix[0]){
+		case '\0':
+			// All out of bits
+			self->hop = 0;
+			break;
+		case '0':
+			// This bit points left
+			if (self->left == NULL){
+				printf("The selected prefix doesn't exist.\n")
+			}else{				
+				prefix++;
+				DeletePrefix(self->left, prefix);
+			}
+			break;
+		case '1':
+			// This bit points right
+			if(self->right == NULL){
+				printf("The selected prefix doesn't exist.\n")
+			}else{
+				prefix++;
+				DeletePrefix(self->right, prefix);
+			}
+			break;
+		default:
+			// Not interpreted as a bit
+			printf("Unsupported prefix. Not binary.\n");
+			// There should be a memory verification here.
+			exit(1);
+	}
+}
 void PrintTable(link self, char prefix[BITSIZE + 1], int level){
 	if(level == 0) printf("%*c%4d\n", -BITSIZE, '*', self->hop);
 	else 
@@ -107,23 +142,26 @@ void PrintTable(link self, char prefix[BITSIZE + 1], int level){
 	return;
 }
 
+// Ver se se faz depois
 void TwoTree(link root);
 int AddressLookUp(char * prefix);
 
 int main(int argc, char **argv){
-	char filename[8];
 	link root;
+	char filename[BUFFSIZE];
 	char prefix[BITSIZE + 1];
-	memset(prefix, '\0', BITSIZE + 1);
 	
-	if(argc == 1){
-		printf("Missing file argument\n");
+	// Leitura do ficheiro
+	memset(prefix, '\0', BITSIZE + 1);
+	if(argc != 2){
+		printf("Wrong number of arguments.\n");
 		exit(1);
 	}
-	
 	sscanf(argv[1], "%s", filename);
 	
+	// Tree Operations
 	root = ReadTable(filename);
+	PrintInterface();
 	PrintTable(root, prefix, 0);
 	
 	
