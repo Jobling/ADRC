@@ -14,7 +14,19 @@ typedef struct node{
 } node;
 
 // Funções auxiliares
-void PrintInterface();
+void PrintInterface(){
+	printf("\n");
+	printf("-------------------------------------------------------\n");
+	printf("[COMMAND]		- [ARGUMENTS]\n");
+	printf("[AddPrefix]		- [Prefix (binary)] [Hop (int)]\n");
+	printf("[DeletePrefix]	- [Prefix (binary)]\n");
+	printf("[PrintTable]	- [NULL]\n");
+	printf("[TwoTree]		- [NULL]\n");
+	printf("[AddressLookUp] - [Prefix (binary)]\n");
+	printf("[HELP]\n");
+	printf("[EXIT]\n");
+	printf("-------------------------------------------------------\n");
+}
 void MemoryCheck(link self);
 
 // Funções relacionadas com a árvore
@@ -98,7 +110,7 @@ void DeletePrefix(link self, char * prefix){
 		case '0':
 			// This bit points left
 			if (self->left == NULL){
-				printf("The selected prefix doesn't exist.\n")
+				printf("The selected prefix doesn't exist.\n");
 			}else{				
 				prefix++;
 				DeletePrefix(self->left, prefix);
@@ -107,7 +119,7 @@ void DeletePrefix(link self, char * prefix){
 		case '1':
 			// This bit points right
 			if(self->right == NULL){
-				printf("The selected prefix doesn't exist.\n")
+				printf("The selected prefix doesn't exist.\n");
 			}else{
 				prefix++;
 				DeletePrefix(self->right, prefix);
@@ -161,8 +173,17 @@ int main(int argc, char **argv){
 	
 	// Tree Operations
 	root = ReadTable(filename);
+	printf("The file %s was loaded successfully to the tree.\n", filename);
+	
+	// Not Implemented options
 	PrintInterface();
 	PrintTable(root, prefix, 0);
+	
+	// Principal Code
+	while(1){
+		
+	}
+	
 	
 	
 exit(0);
