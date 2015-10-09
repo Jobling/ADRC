@@ -5,6 +5,14 @@
 #define BITSIZE 8
 #define BUFFSIZE 16
 
+#define ADD 0
+#define DEL 1
+#define PRINT 2
+#define TWOTREE 3
+#define LOOKUP 4
+#define HELP 5
+#define EXIT 6
+
 // Definição de estruturas de dados
 typedef struct node * link;
 typedef struct node{
@@ -19,14 +27,24 @@ void PrintInterface(){
 	printf("-------------------------------------------------------\n");
 	printf("[COMMAND]\t\t- [ARGUMENTS]\n");
 	printf("-------------------------------------------------------\n");
-	printf("[AddPrefix]\t\t- [Prefix (binary)] [Hop (int)]\n");
-	printf("[DeletePrefix]\t\t- [Prefix (binary)]\n");
-	printf("[PrintTable]\t- [NULL]\n");
-	printf("[TwoTree]\t\t- [NULL]\n");
-	printf("[AddressLookUp]\t- [Prefix (binary)]\n");
+	printf("[ADD]\t\t- [Prefix (binary)] [Hop (int)]\n");
+	printf("[DEL]\t\t- [Prefix (binary)]\n");
+	printf("[PRINT]\t- [NULL]\n");
+	printf("[TWOTREE]\t\t- [NULL]\n");
+	printf("[LOOKUP]\t- [Prefix (binary)]\n");
 	printf("[HELP]\n");
 	printf("[EXIT]\n");
 	printf("-------------------------------------------------------\n");
+}
+int getCMD(char * command){
+	if(!strcasecmp(command, "ADD")) return ADD;
+	if(!strcasecmp(command, "DEL")) return DEL;
+	if(!strcasecmp(command, "PRINT")) return PRINT;
+	if(!strcasecmp(command, "TWOTREE")) return TWOTREE;
+	if(!strcasecmp(command, "LOOKUP")) return LOOKUP;
+	if(!strcasecmp(command, "HELP")) return HELP;
+	if(!strcasecmp(command, "EXIT")) return EXIT;
+	return -1;
 }
 void MemoryCheck(link self);
 
@@ -161,8 +179,12 @@ int AddressLookUp(char * prefix);
 
 int main(int argc, char **argv){
 	link root;
+	char * aux;
 	char filename[BUFFSIZE];
 	char prefix[BITSIZE + 1];
+	char command[BUFFSIZE];
+	char linha[BUFFSIZE];
+	int n = 0, hop = 0;
 	
 	// Leitura do ficheiro
 	memset(prefix, '\0', BITSIZE + 1);
@@ -176,17 +198,45 @@ int main(int argc, char **argv){
 	root = ReadTable(filename);
 	printf("The file %s was loaded successfully to the tree.\n", filename);
 	
-	// Not Implemented options
 	PrintInterface();
-	PrintTable(root, prefix, 0);
 	
 	// Principal Code
 	while(1){
-		
+		aux = fgets(linha, BUFFSIZE, stdin);
+		n = sscanf(linha, "%s %s %d", command, prefix, &hop);
+		switch(getCMD(command)){
+			case ADD:
+				if(n != 3){
+					printf("Invalid number of arguments for command ADD\n");
+					continue;
+				}
+				break;
+			case DEL:
+				if(n != 2){
+					printf("Invalid number of arguments for command DEL\n");
+					continue;
+				}
+				break;
+			case PRINT:
+				PrintTable(root, prefix, 0);
+				break;	
+			case TWOTREE:
+				break;	
+			case LOOKUP:
+				if(n != 2){
+					printf("Invalid number of arguments for command LOOKUP\n");
+				}
+				break;
+			case HELP:
+				PrintInterface();
+				break;
+			case EXIT:
+				// There should be memory verification here
+				exit(0);
+				break;	
+			default:
+				break;
+		}
 	}
-	
-	
-	
-exit(0);
 }
 
