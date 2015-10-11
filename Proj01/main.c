@@ -175,7 +175,22 @@ void PrintTable(link self, char prefix[BITSIZE + 1], int level){
 
 // Ver se se faz depois
 void TwoTree(link root);
-int AddressLookUp(char * prefix);
+int AddressLookUp(link self, char * prefix){
+	int n;
+	
+	if((prefix[0] == '0') && (self->left != NULL)){
+		prefix++;
+		n = AddressLookUp(self->left, prefix); 
+	}else{
+		if((prefix[0] == '1') && (self->right != NULL)){
+			prefix++;
+			n = AddressLookUp(self->right, prefix);
+		}else{
+			return self->hop;	
+		}
+	}
+	if (n == 0) return self->hop;
+}
 
 int main(int argc, char **argv){
 	link root;
@@ -210,12 +225,14 @@ int main(int argc, char **argv){
 					printf("Invalid number of arguments for command ADD\n");
 					continue;
 				}
+				AddPrefix(root, prefix, hop);
 				break;
 			case DEL:
 				if(n != 2){
 					printf("Invalid number of arguments for command DEL\n");
 					continue;
 				}
+				DeletePrefix(root, prefix)
 				break;
 			case PRINT:
 				PrintTable(root, prefix, 0);
@@ -226,6 +243,7 @@ int main(int argc, char **argv){
 				if(n != 2){
 					printf("Invalid number of arguments for command LOOKUP\n");
 				}
+				printf("The next hop for %s is %d.", prefix, AddressLookUp(root, prefix));
 				break;
 			case HELP:
 				PrintInterface();
