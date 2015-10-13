@@ -149,7 +149,7 @@ void DeletePrefix(link self, char * prefix){
 			exit(1);
 	}
 }
-void PrintTable(link self, char prefix[BITSIZE + 1], int level){
+void PrintTable(link self, char * prefix, int level){
 	if(level == 0) printf("%*c%4d\n", -BITSIZE, '*', self->hop);
 	else if(self->hop != 0) printf("%*s%4d\n", -BITSIZE, prefix, self->hop);
 
@@ -170,7 +170,55 @@ void PrintTable(link self, char prefix[BITSIZE + 1], int level){
 }
 
 // Ver se se faz depois
-void TwoTree(link root);
+void TwoTree(link self, int hop){
+	if(self->hop == 0){
+		if(self->right == NULL && self->left == NULL){
+			self->hop = hop;
+		}else{
+			if(self->left != NULL){
+				TwoTree(self->left, hop);
+			}else{
+				self->left = (link) malloc(sizeof(node));
+				self->left->right = NULL;
+				self->left->left = NULL;
+				self->left->hop = hop;
+			}
+			
+			if(self->right != NULL){
+				TwoTree(self->right, hop);
+			}else{
+				self->right = (link) malloc(sizeof(node));
+				self->right->right = NULL;
+				self->right->left = NULL;
+				self->right->hop = hop;
+			}
+		}	
+	}else{
+		if(self->right == NULL && self->left == NULL){
+			return;
+		}else{
+			if(self->left != NULL){
+				TwoTree(self->left, self->hop);
+			}else{
+				self->left = (link) malloc(sizeof(node));
+				self->left->right = NULL;
+				self->left->left = NULL;
+				self->left->hop = self->hop;
+			}
+			
+			if(self->right != NULL){
+				TwoTree(self->right, self->hop);
+			}else{
+				self->right = (link) malloc(sizeof(node));
+				self->right->right = NULL;
+				self->right->left = NULL;
+				self->right->hop = self->hop;
+			}
+			self->hop = 0;
+		}	
+	}
+}
+
 int AddressLookUp(link self, char * prefix){
 	int n;
 	
@@ -253,6 +301,7 @@ int main(int argc, char **argv){
 				printf("Not a valid command\n");
 				break;
 		}
+		memset(prefix, '\0', BITSIZE + 1);
 	}
 }
 
