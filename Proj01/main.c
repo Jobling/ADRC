@@ -59,19 +59,21 @@ void AddPrefix(link self, char * prefix, int hop){
 			// This bit points left
 			if (self->left == NULL){
 				self->left = (link) malloc(sizeof(node));
+				self->left->left = NULL;
+				self->left->right = NULL;
 				self->left->hop = 0;
 			}
-			prefix++;
-			AddPrefix(self->left, prefix, hop);
+			AddPrefix(self->left, &prefix[1], hop);
 			break;
 		case '1':
 			// This bit points right
 			if(self->right == NULL){
 				self->right = (link) malloc(sizeof(node));
+				self->right->right = NULL;
+				self->right->left = NULL;
 				self->right->hop = 0;
 			}
-			prefix++;
-			AddPrefix(self->right, prefix, hop);
+			AddPrefix(self->right, &prefix[1], hop);
 			break;
 		default:
 			// Not interpreted as a bit
@@ -128,21 +130,17 @@ void DeletePrefix(link self, char * prefix){
 			break;
 		case '0':
 			// This bit points left
-			if (self->left == NULL){
+			if (self->left == NULL)
 				printf("The selected prefix doesn't exist.\n");
-			}else{				
-				prefix++;
-				DeletePrefix(self->left, prefix);
-			}
+			else
+				DeletePrefix(self->left, &prefix[1]);
 			break;
 		case '1':
 			// This bit points right
-			if(self->right == NULL){
+			if(self->right == NULL)
 				printf("The selected prefix doesn't exist.\n");
-			}else{
-				prefix++;
-				DeletePrefix(self->right, prefix);
-			}
+			else
+				DeletePrefix(self->right, &prefix[1]);
 			break;
 		default:
 			// Not interpreted as a bit
@@ -153,8 +151,7 @@ void DeletePrefix(link self, char * prefix){
 }
 void PrintTable(link self, char prefix[BITSIZE + 1], int level){
 	if(level == 0) printf("%*c%4d\n", -BITSIZE, '*', self->hop);
-	else 
-		if(self->hop != 0) printf("%*s%4d\n", -BITSIZE, prefix, self->hop);
+	else if(self->hop != 0) printf("%*s%4d\n", -BITSIZE, prefix, self->hop);
 
 	if(self->left != NULL){
 		prefix[level] = '0';
@@ -168,7 +165,6 @@ void PrintTable(link self, char prefix[BITSIZE + 1], int level){
 		PrintTable(self->right, prefix, level);
 		level--;
 	}
-	
 	prefix[level] = '\0';
 	return;
 }
@@ -190,6 +186,7 @@ int AddressLookUp(link self, char * prefix){
 		}
 	}
 	if (n == 0) return self->hop;
+	else return n;
 }
 
 int main(int argc, char **argv){
@@ -232,18 +229,18 @@ int main(int argc, char **argv){
 					printf("Invalid number of arguments for command DEL\n");
 					continue;
 				}
-				DeletePrefix(root, prefix)
+				DeletePrefix(root, prefix);
 				break;
 			case PRINT:
 				PrintTable(root, prefix, 0);
-				break;	
+				break;
 			case TWOTREE:
-				break;	
+				break;
 			case LOOKUP:
 				if(n != 2){
 					printf("Invalid number of arguments for command LOOKUP\n");
 				}
-				printf("The next hop for %s is %d.", prefix, AddressLookUp(root, prefix));
+				printf("The next hop for %s is %d.\n", prefix, AddressLookUp(root, prefix));
 				break;
 			case HELP:
 				PrintInterface();
@@ -251,8 +248,9 @@ int main(int argc, char **argv){
 			case EXIT:
 				// There should be memory verification here
 				exit(0);
-				break;	
+				break;
 			default:
+				printf("Not a valid command\n");
 				break;
 		}
 	}
