@@ -16,7 +16,7 @@
 // Definição de estruturas de dados
 typedef struct node * link;
 typedef struct node{
-	int hop; 
+	int hop;
 	link left;
 	link right;
 } node;
@@ -46,7 +46,27 @@ int getCMD(char * command){
 	if(!strcasecmp(command, "EXIT")) return EXIT;
 	return -1;
 }
-void MemoryCheck(link self);
+void MemoryCheck(link self){
+	if(self->left != NULL){
+		MemoryCheck(self->left);
+		free(self->left);
+	}
+	if(self->right != NULL){
+		MemoryCheck(self->right);
+		free(self->right);
+	}
+	return;
+}
+int isBinary(char * prefix){
+	int i;
+	for (i = 0; prefix[i] != '\0'; i++){
+		if(prefix[i] != '0' && prefix[i] != '1'){
+			printf("%s is not binary!\n", prefix);
+			return 0;
+		}
+	}
+	return 1;
+}
 
 // Funções relacionadas com a árvore
 void AddPrefix(link self, char * prefix, int hop){	
@@ -78,7 +98,6 @@ void AddPrefix(link self, char * prefix, int hop){
 		default:
 			// Not interpreted as a bit
 			printf("Unsupported prefix. Not binary.\n");
-			// There should be a memory verification here.
 			exit(1);
 	}
 }
@@ -108,14 +127,14 @@ link ReadTable(char * filename){
 	
 	while(aux != NULL){
 		n = sscanf(linha, "%s %d", prefix, &hop);
-		// Here we assume the prefix already comes in a binary form.
-		// Ex: 11010110\0 (8 bit)		
-		if(n != 2){
-			printf("Invalid file format\n");
-			// There should be a memory verification here.
-			exit(1);
+		if(isBinary(prefix)){
+			if(n != 2){
+				printf("Invalid file format\n");
+				// There should be a memory verification here.
+				exit(1);
+			}
+			AddPrefix(root, prefix, hop);
 		}
-		AddPrefix(root, prefix, hop);
 		aux = fgets(linha, BUFFSIZE, fp);
 	}
 	
@@ -183,7 +202,6 @@ void TwoTree(link self, int hop){
 				self->left->left = NULL;
 				self->left->hop = hop;
 			}
-			
 			if(self->right != NULL){
 				TwoTree(self->right, hop);
 			}else{
@@ -192,7 +210,7 @@ void TwoTree(link self, int hop){
 				self->right->left = NULL;
 				self->right->hop = hop;
 			}
-		}	
+		}
 	}else{
 		if(self->right == NULL && self->left == NULL){
 			return;
@@ -205,7 +223,7 @@ void TwoTree(link self, int hop){
 				self->left->left = NULL;
 				self->left->hop = self->hop;
 			}
-			
+
 			if(self->right != NULL){
 				TwoTree(self->right, self->hop);
 			}else{
@@ -215,10 +233,9 @@ void TwoTree(link self, int hop){
 				self->right->hop = self->hop;
 			}
 			self->hop = 0;
-		}	
+		}
 	}
 }
-
 int AddressLookUp(link self, char * prefix){
 	int n;
 	
@@ -270,6 +287,7 @@ int main(int argc, char **argv){
 					printf("Invalid number of arguments for command ADD\n");
 					continue;
 				}
+				if(!isBinary(prefix)) continue;
 				AddPrefix(root, prefix, hop);
 				break;
 			case DEL:
@@ -277,30 +295,35 @@ int main(int argc, char **argv){
 					printf("Invalid number of arguments for command DEL\n");
 					continue;
 				}
+				if(!isBinary(prefix)) continue;
 				DeletePrefix(root, prefix);
 				break;
 			case PRINT:
 				PrintTable(root, prefix, 0);
 				break;
 			case TWOTREE:
+				TwoTree(root, -1);
 				break;
 			case LOOKUP:
 				if(n != 2){
 					printf("Invalid number of arguments for command LOOKUP\n");
 				}
+				if(!isBinary(prefix)) continue;
 				printf("The next hop for %s is %d.\n", prefix, AddressLookUp(root, prefix));
 				break;
 			case HELP:
 				PrintInterface();
 				break;
 			case EXIT:
-				// There should be memory verification here
+				MemoryCheck(root);
+				free(root);
 				exit(0);
 				break;
 			default:
 				printf("Not a valid command\n");
 				break;
 		}
+		printf("----------\n");
 		memset(prefix, '\0', BITSIZE + 1);
 	}
 }
