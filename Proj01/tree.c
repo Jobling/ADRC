@@ -111,14 +111,20 @@ int DeletePrefix(link self, char * prefix){
 			if (self->left == NULL)
 				printf("The selected prefix doesn't exist.\n");
 			else
-				if(DeletePrefix(self->left, &prefix[1])) free(self->left);
+				if(DeletePrefix(self->left, &prefix[1])){
+					free(self->left);
+					self->left = NULL;
+				}
 			break;
 		case '1':
 			// This bit points right
 			if(self->right == NULL)
 				printf("The selected prefix doesn't exist.\n");
 			else
-				if(DeletePrefix(self->right, &prefix[1])) free(self->right);
+				if(DeletePrefix(self->right, &prefix[1])){
+					free(self->right);
+					self->right = NULL;
+				}
 			break;
 		default:
 			// Not interpreted as a bit
