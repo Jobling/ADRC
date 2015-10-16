@@ -86,6 +86,7 @@ link ReadTable(char * filename){
 	// Node addition from file input
 	while(aux != NULL){
 		n = sscanf(linha, "%s %d", prefix, &hop);
+		prefix[BITSIZE] = '\0';
 		if(n == 2){
 			if(isBinary(prefix)) AddPrefix(root, prefix, hop);
 		}else printf("Invalid line format\n");

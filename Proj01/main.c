@@ -27,6 +27,7 @@ int main(int argc, char **argv){
 	while(1){
 		fgets(linha, BUFFSIZE, stdin);
 		n = sscanf(linha, "%s %s %d", command, prefix, &hop);
+		prefix[BITSIZE] = '\0';
 		// With the MACROS, this switch speaks for itself
 		switch(getCMD(command)){
 			case ADD:
@@ -49,7 +50,9 @@ int main(int argc, char **argv){
 				PrintTable(root, prefix, 0);
 				break;
 			case TWOTREE:
-				TwoTree(root, -1);
+				// Since the default (*) value is 1
+				// That's the valu to be sent.
+				TwoTree(root, 1);
 				break;
 			case LOOKUP:
 				if(n != 2){
