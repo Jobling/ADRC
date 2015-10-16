@@ -98,7 +98,7 @@ link ReadTable(char * filename){
 }
 /*
 Function used to "clean" a node.
-This function does not free the memory used by the given node.
+This function does free the memory used by the given node, if the node is a leaf
 */
 int DeletePrefix(link self, char * prefix){
 	switch (prefix[0]){
