@@ -166,15 +166,14 @@ void PrintTable(link self, char * prefix, int level){
 Function used to turn the binary tree into a 2-Tree.
 */
 void TwoTree(link self, int hop){
-	// Verify if the node is "empty" or not
-	// Set value to "pass down to child nodes"
-	hop = (self->hop != 0) ? self->hop: hop;
-	
-	// If node is leaf node, it's value must be the value that was set beforehand
-	if(self->right == NULL && self->left == NULL) self->hop = hop;
-	// If the node has children, it's not a leaf
-	// Pass on the value that was set beforehand
-	else{
+	// Knowing that if a node is a leaf, it must
+	// have a next-hop (due to DeletePrefix implementation)
+	// We can assume this function only needs to affect 
+	// parent nodes, meaning, nodes with one or more child nodes
+	if(self->right != NULL || self->left != NULL){
+		// Verify if the node is "empty" or not
+		// Set value to "pass down to child nodes"
+		hop = (self->hop != 0) ? self->hop: hop;
 		// Since the node is not a leaf, it must be "cleaned", so that
 		// only leaf nodes have values
 		self->hop = 0;
