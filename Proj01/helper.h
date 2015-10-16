@@ -7,7 +7,7 @@
 
 // MACROS
 #define BITSIZE 8
-#define BUFFSIZE 16
+#define BUFFSIZE 32
 
 #define ADD 0
 #define DEL 1
