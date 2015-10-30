@@ -4,12 +4,14 @@
 
 // ----------------------------------------------- MACROS ---------------------------------------
 /*
-Since the node ID are positive integers
-it is safe to assume negative integers as MACROS
+Using inverse notation from the project description
+because of the usage.
 */
-#define PROVIDER -1
-#define PEER -2
-#define CUSTOMER -3
+#define NO_ROUTE 4
+#define PROVIDER 3
+#define PEER 2
+#define CUSTOMER 1
+#define DESTINATION 0
 
 #define BUFFSIZE 64
 
@@ -31,6 +33,7 @@ And a relationship identifier
 struct node{
 	long id;
 	int relationship;
+	int path_type;
 	link next;
 };
 
@@ -61,40 +64,14 @@ Edge newE(long tail, long head, int relationship){
 
 /*
 Create a new node and return it
-As this is meant to be used to create a node 'v' for 
-the adjancy list of node 'u', the relationship notation
-will be the relationship 'vu'.
-So, if 'u' is a <PROVIDER> of 'v', the relationship 
-shall be <CUSTOMER>.
 */
 link newNode(long id, int relationship, link next){
 	link v = (link) malloc(sizeof(struct node));
 
 	v->id = id;
-	switch(relationship){
-		// Creating the first node of the list: 'u'
-		case(0):
-			v->relationship = 0;
-			break;
-		// 'u' is provider of 'v'/'this', so:
-		case(1):
-			v->relationship = CUSTOMER;
-			break;
-		// 'u' and 'v'/'this' are peers, so:
-		case(2):
-			v->relationship = PEER;
-			break;
-		// 'u' is a costumer of 'v'/'this' so:
-		case(3):
-			v->relationship = PROVIDER;
-			break;
-		// There was something wrong
-		default:
-			printf("Some kind of error occurred with the relationships from the file\n");
-			v->relationship = 0;
-			break;
-	}
-	v->next = next;
+	v->relationship = relationship;
+	v->path_type = NO_ROUTE;
+	v->next = next;	
 
 	return v;
 }
@@ -129,6 +106,79 @@ void graphInsertE(Graph * G, Edge e){
 	G->E++;
 
 	free(e);
+}
+
+/*
+Recursive algorithm that finds the type of path to a given node
+Eventualy we shall pass a 'hop' value as argument
+*/
+void findPath(Graph * G, long id, int relationship){
+	int i;
+	link aux, l = NULL;
+	
+	// Getting targeted node's neighbors
+	for(i = 0; i < G->V; i++)
+		if(G->adj[i]->id == id)
+			l = G->adj[i];
+		
+	if(l == NULL){
+		printf("There was some kind of error while finding path type");
+		return;
+	}	
+	switch(relationship){
+		// This is the destination node
+		case(DESTINATION):
+			l->path_type = DESTINATION;
+			for(aux = l->next; aux != NULL; aux = aux->next)
+				switch(aux->relationship){
+					case(CUSTOMER):
+						findPath(G, aux->id, PROVIDER);
+						break;
+					case(PEER):
+						findPath(G, aux->id, PEER);
+						break;
+					case(PROVIDER):
+						findPath(G, aux->id, CUSTOMER);
+						break;
+					default:
+						printf("Some kind of error occurred with the relationships while finding path type [recursive]\n");
+						break;
+				}
+			break;
+		case(CUSTOMER):
+			l->path_type = CUSTOMER;
+			for(aux = l->next; aux != NULL; aux = aux->next)
+				switch(aux->relationship){
+					case(CUSTOMER):
+						findPath(G, aux->id, PROVIDER);
+						break;
+					case(PEER):
+						findPath(G, aux->id, PEER);
+						break;
+					case(PROVIDER):
+						findPath(G, aux->id, CUSTOMER);
+						break;
+					default:
+						printf("Some kind of error occurred with the relationships while finding path type [recursive]\n");
+						break;
+				}
+			break;
+		case(PEER):
+			if(l->path_type > PEER) l->path_type = PEER;
+			for(aux = l->next; aux != NULL; aux = aux->next)
+				if(aux->relationship == CUSTOMER)
+					findPath(G, aux->id, PROVIDER);
+			break;
+		case(PROVIDER):
+			if(l->path_type > PROVIDER) l->path_type = PROVIDER;
+			for(aux = l->next; aux != NULL; aux = aux->next)
+				if(aux->relationship == CUSTOMER)
+					findPath(G, aux->id, PROVIDER);
+			break;
+		default:
+			printf("Some kind of error occurred with the relationships while finding path type\n");
+			break;
+	}
 }
 
 /*
