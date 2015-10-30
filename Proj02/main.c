@@ -64,14 +64,18 @@ Create a new node and return it
 As this is meant to be used to create a node 'v' for 
 the adjancy list of node 'u', the relationship notation
 will be the relationship 'vu'.
-So, if 'u' is a provider of 'v', the relationship shall be
-<CUSTOMER>.
+So, if 'u' is a <PROVIDER> of 'v', the relationship 
+shall be <CUSTOMER>.
 */
 link newNode(long id, int relationship, link next){
 	link v = (link) malloc(sizeof(struct node));
 
 	v->id = id;
 	switch(relationship){
+		// Creating the first node of the list: 'u'
+		case(0):
+			v->relationship = 0;
+			break;
 		// 'u' is provider of 'v'/'this', so:
 		case(1):
 			v->relationship = CUSTOMER;
@@ -86,7 +90,7 @@ link newNode(long id, int relationship, link next){
 			break;
 		// There was something wrong
 		default:
-			printf("Some kind of error occurred with the relationships\n");
+			printf("Some kind of error occurred with the relationships from the file\n");
 			v->relationship = 0;
 			break;
 	}
@@ -98,17 +102,34 @@ link newNode(long id, int relationship, link next){
 /*
 Insert a relationship into the graph
 Assuming no verification has been done yet.
-
-POR FAZEEEEEER
-
-void graphInsertE(Graph G, Edge e){
-
-	for(i = 0; i < G->V; i++)
-
+*/
+void graphInsertE(Graph * G, Edge e){
+	int i;
+	for(i = 0; i < G->V; i++){
+		// If there is a tail node in the list, we just add the head node
+		if(G->adj[i]->id == e->tail){
+			G->adj[i]->next = newNode(e->head, e->relationship, G->adj[i]->next);
+			G->E++;
+			free(e);
+			return;
+		}
+	}
+	
+	// There is no tail node
+	// Creating the tail node
+	G->V++;
+	if((G->adj = (link *) realloc(G->adj, G->V * sizeof(link))) == NULL{
+			printf("Dynamic memory allocation error (realloc)\n");
+			exit(1);
+	}
+	// Adding tail node
+	G->adj[G->V - 1] = newNode(e->tail, 0, NULL);
+	// Adding head node
+	G->adj[G->V - 1]->next = newNode(e->head, e->relationship, G->adj[G->V - 1]);
+	G->E++;
 
 	free(e);
 }
-*/
 
 /*
 Read the graph from a file and store it in a Graph * named G
@@ -130,8 +151,7 @@ Graph * readGraph(char * filename){
 	G = (Graph *) malloc(sizeof(Graph));
 	G->V = 0;
 	G->E = 0;
-	// Perguntar ao professor como saber dimensoes da lista de adjacencias
-	// OU usar realloc (em 4~5 sites so 1 e que disse 'mal')
+	// A memória para a lista será alocada dinamicamente, posteriormente
 	G->adj = NULL;
 
 	// Node addition from file input
@@ -153,4 +173,41 @@ Graph * readGraph(char * filename){
 	return G;
 }
 
-// Main
+void delList(link l){
+	if(l->next != NULL){
+		delList(l->next);
+		free(l);
+	}
+}
+
+/*
+Function used to free used memory when exiting cleanly from the program.
+*/
+void MemoryCheck(Graph * G){
+	int i;
+	for(i = 0; i < G->V; i++) delList(G->adj[i]);
+	free(G->adj);
+	free(G);
+}
+
+// ----------------------------------------------- Main --------------------------------------------
+int main(int argc, char **argv){
+	Graph * G;
+	char filename[BUFFSIZE];
+	char command[BUFFSIZE];
+	char linha[BUFFSIZE];
+	
+	// Obtaining filename from arguments
+	if(argc != 3){
+		printf("Wrong number of arguments.\n");
+		exit(1);
+	}
+	sscanf(argv[1], "%s", filename);
+	
+	// Tree Operations
+	G = readGraph(filename);
+	printf("The file %s was loaded successfully to the Graph.\n", filename);
+	printf("There are %d nodes and %d edges! Please work...\n", G->V, G->E);
+	MemoryCheck(G);
+	exit(0);
+}
