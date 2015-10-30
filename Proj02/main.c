@@ -118,14 +118,14 @@ void graphInsertE(Graph * G, Edge e){
 	// There is no tail node
 	// Creating the tail node
 	G->V++;
-	if((G->adj = (link *) realloc(G->adj, G->V * sizeof(link))) == NULL{
+	if((G->adj = (link *) realloc(G->adj, G->V * sizeof(link))) == NULL){
 			printf("Dynamic memory allocation error (realloc)\n");
 			exit(1);
 	}
 	// Adding tail node
 	G->adj[G->V - 1] = newNode(e->tail, 0, NULL);
 	// Adding head node
-	G->adj[G->V - 1]->next = newNode(e->head, e->relationship, G->adj[G->V - 1]);
+	G->adj[G->V - 1]->next = newNode(e->head, e->relationship, G->adj[G->V - 1]->next);
 	G->E++;
 
 	free(e);
@@ -194,20 +194,21 @@ void MemoryCheck(Graph * G){
 int main(int argc, char **argv){
 	Graph * G;
 	char filename[BUFFSIZE];
-	char command[BUFFSIZE];
-	char linha[BUFFSIZE];
-	
+
 	// Obtaining filename from arguments
-	if(argc != 3){
+	if(argc != 2){
 		printf("Wrong number of arguments.\n");
 		exit(1);
 	}
 	sscanf(argv[1], "%s", filename);
-	
-	// Tree Operations
+
+	// Reading Graph
 	G = readGraph(filename);
 	printf("The file %s was loaded successfully to the Graph.\n", filename);
-	printf("There are %d nodes and %d edges! Please work...\n", G->V, G->E);
+	printf("There are %d nodes and %d edges!\n", G->V, G->E);
+	
+	// Doing some magic here
+	
 	MemoryCheck(G);
 	exit(0);
 }
