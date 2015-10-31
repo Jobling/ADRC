@@ -65,7 +65,7 @@ the nodes (adjency list)
 typedef struct{
 	int V;
 	int E;
-	AS * list;
+	AS ** list;
 }Graph;
 
 // ----------------------------------------------- Functions ---------------------------------------
@@ -125,7 +125,7 @@ void graphInsertE(Graph * G, Edge e){
 	// There is no tail node
 	// Creating the tail node
 	G->V++;
-	if((G->list = (AS *) realloc(G->list, G->V * sizeof(AS))) == NULL){
+	if((G->list = (AS **) realloc(G->list, G->V * sizeof(AS *))) == NULL){
 			printf("Dynamic memory allocation error (realloc)\n");
 			exit(1);
 	}
@@ -179,7 +179,7 @@ void findPath(Graph * G, long id, int relationship, int n){
 		if(l->P.type > relationship){ 
 			l->P.type = relationship;
 			l->P.hops = n;
-		}else if((l->P->type == relationship) && (l->P.hops > n))
+		}else if((l->P.type == relationship) && (l->P.hops > n))
 			l->P.hops = n;
 		n++;
 		for(aux = l->next; aux != NULL; aux = aux->next)
@@ -261,21 +261,21 @@ void printResult(Graph * G){
 	int i;
 	printf("Node\t\t\tPath (Type, Hops)\n");
 	for(i = 0; i < G->V; i++)
-		switch(G->list[i]->P->type){
+		switch(G->list[i]->P.type){
 			case(DESTINATION):
-				printf("%-5li (DESTINATION, %2d)\n", G->list[i]->id, G->list[i]->P->hops);
+				printf("%-5li (DESTINATION, %2d)\n", G->list[i]->id, G->list[i]->P.hops);
 				break;
 			case(CUSTOMER):
-				printf("%-5li (CUSTOMER,    %2d)\n", G->list[i]->id, G->list[i]->P->hops);
+				printf("%-5li (CUSTOMER,    %2d)\n", G->list[i]->id, G->list[i]->P.hops);
 				break;
 			case(PEER):
-				printf("%-5li (PEER,        %2d)\n", G->list[i]->id, G->list[i]->P->hops);
+				printf("%-5li (PEER,        %2d)\n", G->list[i]->id, G->list[i]->P.hops);
 				break;
 			case(PROVIDER):
-				printf("%-5li (PROVIDER,    %2d)\n", G->list[i]->id, G->list[i]->P->hops);
+				printf("%-5li (PROVIDER,    %2d)\n", G->list[i]->id, G->list[i]->P.hops);
 				break;
 			case(NO_ROUTE):
-				printf("%-5li (UNUSABLE,    %2d)\n", G->list[i]->id, G->list[i]->P->hops);
+				printf("%-5li (UNUSABLE,    %2d)\n", G->list[i]->id, G->list[i]->P.hops);
 				break;
 			default:
 				printf("Something wrong happened with the path type resolution\n");
