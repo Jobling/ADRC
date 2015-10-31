@@ -223,42 +223,84 @@ Graph * readGraph(char * filename){
 	return G;
 }
 
+/*
+Auxiliary function used when deleting all the entries for the adjancy list
+*/
 void delList(link l){
 	if(l->next != NULL){
 		delList(l->next);
 		free(l);
+		l = NULL;
 	}
 }
 
 /*
 Function used to free used memory when exiting cleanly from the program.
 */
-void MemoryCheck(Graph * G){
+void memoryCheck(Graph * G){
 	int i;
 	for(i = 0; i < G->V; i++) delList(G->adj[i]);
 	free(G->adj);
 	free(G);
 }
 
+/*
+Function used to print the list of the path_types
+*/
+void printResult(Graph * G){
+	int i;
+	for(i = 0; i < G->V; i++)
+		switch(G->adj[i]->path_type){
+			case(DESTINATION):
+				printf("Node: %-5li is the destination\n", G->adj[i]->id);
+				break;
+			case(CUSTOMER):
+				printf("Node: %-5li has a customer path to the destination\n", G->adj[i]->id);
+				break;
+			case(PEER):
+				printf("Node: %-5li has a peer path to the destination\n", G->adj[i]->id);
+				break;
+			case(PROVIDER):
+				printf("Node: %-5li has a provider path to the destination\n", G->adj[i]->id);
+				break;
+			case(NO_ROUTE):
+				printf("Node: %-5li has no path to the destination\n", G->adj[i]->id);
+				break;
+			default:
+				printf("Something wrong happened with the path type resolution\n");
+				break;
+		}
+}
+
+
 // ----------------------------------------------- Main --------------------------------------------
 int main(int argc, char **argv){
 	Graph * G;
 	char filename[BUFFSIZE];
+	long destination;
 
 	// Obtaining filename from arguments
-	if(argc != 2){
+	if(argc != 3){
 		printf("Wrong number of arguments.\n");
 		exit(1);
 	}
 	sscanf(argv[1], "%s", filename);
+	if(sscanf(argv[2], "%li", &destination) != 1){
+		printf("Destination must be a long integer!\n");
+		exit(0);
+	}
 
 	// Reading Graph
+	printf("Reading file\n");
 	G = readGraph(filename);
-	printf("The file %s was loaded successfully to the Graph.\n", filename);
+	
+	printf("The file %s was loaded successfully to the Graph\n", filename);
 	printf("There are %d nodes and %d edges!\n", G->V, G->E);
 	
 	// Doing some magic here
+	findPath(G, destination, DESTINATION);
+	printResult(G);
 	
-	MemoryCheck(G);
+	memoryCheck(G);
 	exit(0);
 }
