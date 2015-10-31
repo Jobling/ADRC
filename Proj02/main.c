@@ -19,6 +19,21 @@ because of the usage.
 typedef struct node * link;
 typedef struct edge * Edge;
 
+/*
+Each path is caracterized by a path type (defined in the MACROS)
+and a number of hops
+Eventually it will be stored in a matrix, or it will hold the id of
+the destination
+*/
+typedef struct{
+	int type;
+	int hops;
+} path;
+
+/*
+Each edge should contain an identifier for both
+tail and head, and even the relationship from tail to head
+*/
 struct edge{
 	long tail;
 	long head;
@@ -33,10 +48,14 @@ And a relationship identifier
 struct node{
 	long id;
 	int relationship;
-	int path_type;
-	int destination_hops;
 	link next;
 };
+
+typedef struct{
+	long id;
+	path P;
+	link next;
+} AS;
 
 /*
 The graph should contain information about the
@@ -46,7 +65,7 @@ the nodes (adjency list)
 typedef struct{
 	int V;
 	int E;
-	link * adj;
+	AS * list;
 }Graph;
 
 // ----------------------------------------------- Functions ---------------------------------------
@@ -71,11 +90,20 @@ link newNode(long id, int relationship, link next){
 
 	v->id = id;
 	v->relationship = relationship;
-	v->path_type = NO_ROUTE;
-	v->destination_hops = -1;
-	v->next = next;
+	v->next = next;	
 
 	return v;
+}
+
+AS * newAS(long id){
+	AS * a = (AS *) malloc(sizeof(AS));
+	
+	a->id = id;
+	a->P.type = NO_ROUTE;
+	a->P.hops = -1;
+	a->next = NULL;
+	
+	return a;
 }
 
 /*
@@ -86,8 +114,8 @@ void graphInsertE(Graph * G, Edge e){
 	int i;
 	for(i = 0; i < G->V; i++){
 		// If there is a tail node in the list, we just add the head node
-		if(G->adj[i]->id == e->tail){
-			G->adj[i]->next = newNode(e->head, e->relationship, G->adj[i]->next);
+		if(G->list[i]->id == e->tail){
+			G->list[i]->next = newNode(e->head, e->relationship, G->list[i]->next);
 			G->E++;
 			free(e);
 			return;
@@ -97,14 +125,14 @@ void graphInsertE(Graph * G, Edge e){
 	// There is no tail node
 	// Creating the tail node
 	G->V++;
-	if((G->adj = (link *) realloc(G->adj, G->V * sizeof(link))) == NULL){
+	if((G->list = (AS *) realloc(G->list, G->V * sizeof(AS))) == NULL){
 			printf("Dynamic memory allocation error (realloc)\n");
 			exit(1);
 	}
 	// Adding tail node
-	G->adj[G->V - 1] = newNode(e->tail, 0, NULL);
+	G->list[G->V - 1] = newAS(e->tail);
 	// Adding head node
-	G->adj[G->V - 1]->next = newNode(e->head, e->relationship, G->adj[G->V - 1]->next);
+	G->list[G->V - 1]->next = newNode(e->head, e->relationship, G->list[G->V - 1]->next);
 	G->E++;
 
 	free(e);
@@ -116,21 +144,21 @@ Eventualy we shall pass a 'hop' value as argument
 */
 void findPath(Graph * G, long id, int relationship, int n){
 	int i;
-	link aux, l = NULL;
+	link aux;
+	AS * l = NULL;
 	
 	// Getting targeted node's neighbors
 	for(i = 0; i < G->V; i++)
-		if(G->adj[i]->id == id)
-			l = G->adj[i];
+		if(G->list[i]->id == id)
+			l = G->list[i];
 		
 	if(l == NULL){
 		printf("There was some kind of error while finding path type\n");
-		n--;
 		return;
 	}
 	if((relationship == DESTINATION) || (relationship == CUSTOMER)){
-		l->path_type = relationship;
-		if((l->destination_hops == -1) || (l->destination_hops < n)) l->destination_hops = n;
+		l->P.type = relationship;
+		if((l->P.hops == -1) || (l->P.hops < n)) l->P.hops = n;
 		n++;
 		for(aux = l->next; aux != NULL; aux = aux->next)
 			switch(aux->relationship){
@@ -148,11 +176,11 @@ void findPath(Graph * G, long id, int relationship, int n){
 					break;
 			}
 	}else{
-		if(l->path_type > relationship){ 
-			l->path_type = relationship;
-			l->destination_hops = n;
-		}else if((l->path_type == relationship) && (l->destination_hops > n))
-			l->destination_hops = n;
+		if(l->P.type > relationship){ 
+			l->P.type = relationship;
+			l->P.hops = n;
+		}else if((l->P->type == relationship) && (l->P.hops > n))
+			l->P.hops = n;
 		n++;
 		for(aux = l->next; aux != NULL; aux = aux->next)
 			if(aux->relationship == CUSTOMER)
@@ -181,7 +209,7 @@ Graph * readGraph(char * filename){
 	G->V = 0;
 	G->E = 0;
 	// A memória para a lista será alocada dinamicamente, posteriormente
-	G->adj = NULL;
+	G->list = NULL;
 
 	// Node addition from file input
 	while(fgets(linha, BUFFSIZE, fp) != NULL){
@@ -205,9 +233,9 @@ Graph * readGraph(char * filename){
 /*
 Auxiliary function used when deleting all the entries for the adjancy list
 */
-void delList(link l){
+void delLinks(link l){
 	if(l->next != NULL){
-		delList(l->next);
+		delLinks(l->next);
 		free(l);
 		l = NULL;
 	}
@@ -218,8 +246,11 @@ Function used to free used memory when exiting cleanly from the program.
 */
 void memoryCheck(Graph * G){
 	int i;
-	for(i = 0; i < G->V; i++) delList(G->adj[i]);
-	free(G->adj);
+	for(i = 0; i < G->V; i++){ 
+		delLinks(G->list[i]->next);
+		free(G->list[i]);
+	}
+	free(G->list);
 	free(G);
 }
 
@@ -230,21 +261,21 @@ void printResult(Graph * G){
 	int i;
 	printf("Node\t\t\tPath (Type, Hops)\n");
 	for(i = 0; i < G->V; i++)
-		switch(G->adj[i]->path_type){
+		switch(G->list[i]->P->type){
 			case(DESTINATION):
-				printf("%-5li (DESTINATION, %2d)\n", G->adj[i]->id, G->adj[i]->destination_hops);
+				printf("%-5li (DESTINATION, %2d)\n", G->list[i]->id, G->list[i]->P->hops);
 				break;
 			case(CUSTOMER):
-				printf("%-5li (CUSTOMER,    %2d)\n", G->adj[i]->id, G->adj[i]->destination_hops);
+				printf("%-5li (CUSTOMER,    %2d)\n", G->list[i]->id, G->list[i]->P->hops);
 				break;
 			case(PEER):
-				printf("%-5li (PEER,        %2d)\n", G->adj[i]->id, G->adj[i]->destination_hops);
+				printf("%-5li (PEER,        %2d)\n", G->list[i]->id, G->list[i]->P->hops);
 				break;
 			case(PROVIDER):
-				printf("%-5li (PROVIDER,    %2d)\n", G->adj[i]->id, G->adj[i]->destination_hops);
+				printf("%-5li (PROVIDER,    %2d)\n", G->list[i]->id, G->list[i]->P->hops);
 				break;
 			case(NO_ROUTE):
-				printf("%-5li (UNUSABLE,    %2d)\n", G->adj[i]->id, G->adj[i]->destination_hops);
+				printf("%-5li (UNUSABLE,    %2d)\n", G->list[i]->id, G->list[i]->P->hops);
 				break;
 			default:
 				printf("Something wrong happened with the path type resolution\n");
