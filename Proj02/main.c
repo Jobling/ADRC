@@ -34,6 +34,7 @@ struct node{
 	long id;
 	int relationship;
 	int path_type;
+	int destination_hops;
 	link next;
 };
 
@@ -71,6 +72,7 @@ link newNode(long id, int relationship, link next){
 	v->id = id;
 	v->relationship = relationship;
 	v->path_type = NO_ROUTE;
+	v->destination_hops = -1;
 	v->next = next;	
 
 	return v;
@@ -112,7 +114,7 @@ void graphInsertE(Graph * G, Edge e){
 Recursive algorithm that finds the type of path to a given node
 Eventualy we shall pass a 'hop' value as argument
 */
-void findPath(Graph * G, long id, int relationship){
+void findPath(Graph * G, long id, int relationship, int n){
 	int i;
 	link aux, l = NULL;
 	
@@ -123,61 +125,38 @@ void findPath(Graph * G, long id, int relationship){
 		
 	if(l == NULL){
 		printf("There was some kind of error while finding path type\n");
-		return;
-	}	
-	switch(relationship){
-		// This is the destination node
-		case(DESTINATION):
-			l->path_type = DESTINATION;
-			for(aux = l->next; aux != NULL; aux = aux->next)
-				switch(aux->relationship){
-					case(CUSTOMER):
-						findPath(G, aux->id, PROVIDER);
-						break;
-					case(PEER):
-						findPath(G, aux->id, PEER);
-						break;
-					case(PROVIDER):
-						findPath(G, aux->id, CUSTOMER);
-						break;
-					default:
-						printf("Some kind of error occurred with the relationships while finding path type [recursive]\n");
-						break;
-				}
-			break;
-		case(CUSTOMER):
-			l->path_type = CUSTOMER;
-			for(aux = l->next; aux != NULL; aux = aux->next)
-				switch(aux->relationship){
-					case(CUSTOMER):
-						findPath(G, aux->id, PROVIDER);
-						break;
-					case(PEER):
-						findPath(G, aux->id, PEER);
-						break;
-					case(PROVIDER):
-						findPath(G, aux->id, CUSTOMER);
-						break;
-					default:
-						printf("Some kind of error occurred with the relationships while finding path type [recursive]\n");
-						break;
-				}
-			break;
-		case(PEER):
-			if(l->path_type > PEER) l->path_type = PEER;
-			for(aux = l->next; aux != NULL; aux = aux->next)
-				if(aux->relationship == CUSTOMER)
-					findPath(G, aux->id, PROVIDER);
-			break;
-		case(PROVIDER):
-			if(l->path_type > PROVIDER) l->path_type = PROVIDER;
-			for(aux = l->next; aux != NULL; aux = aux->next)
-				if(aux->relationship == CUSTOMER)
-					findPath(G, aux->id, PROVIDER);
-			break;
-		default:
-			printf("Some kind of error occurred with the relationships while finding path type\n");
-			break;
+		n--;
+		return n;
+	}
+	if((relationship == DESTINATION) || (relationship == CUSTOMER)){
+		l->path_type = relationship;
+		if((l->destination_hops == -1) || (l->destination_hops < n)) l->destination_hops = n;
+		n++;
+		for(aux = l->next; aux != NULL; aux = aux->next)
+			switch(aux->relationship){
+				case(CUSTOMER):
+					findPath(G, aux->id, PROVIDER, n);
+					break;
+				case(PEER):
+					findPath(G, aux->id, PEER, n);
+					break;
+				case(PROVIDER):
+					findPath(G, aux->id, CUSTOMER, n);
+					break;
+				default:
+					printf("Some kind of error occurred with the relationships while finding path type [recursive]\n");
+					break;
+			}
+	}else{
+		if(l->path_type > relationship){ 
+			l->path_type = relationship;
+			l->destination_hops = n;
+		}else if((l->path_type == relationship) && (l->destination_hops > n))
+			l->destination_hops = n;
+		n++;
+		for(aux = l->next; aux != NULL; aux = aux->next)
+			if(aux->relationship == CUSTOMER)
+				findPath(G, aux->id, PROVIDER, n);	
 	}
 }
 
@@ -249,22 +228,23 @@ Function used to print the list of the path_types
 */
 void printResult(Graph * G){
 	int i;
+	printf("Node\t\t\tPath (Type, Hops)\n")
 	for(i = 0; i < G->V; i++)
 		switch(G->adj[i]->path_type){
 			case(DESTINATION):
-				printf("Node: %-5li is the destination\n", G->adj[i]->id);
+				printf("%-5li (DESTINATION, %2d)\n", G->adj[i]->id, G->adj[i]->destination_hops);
 				break;
 			case(CUSTOMER):
-				printf("Node: %-5li has a customer path to the destination\n", G->adj[i]->id);
+				printf("%-5li (CUSTOMER,    %2d)\n", G->adj[i]->id, G->adj[i]->destination_hops);
 				break;
 			case(PEER):
-				printf("Node: %-5li has a peer path to the destination\n", G->adj[i]->id);
+				printf("%-5li (PEER,        %2d)\n", G->adj[i]->id, G->adj[i]->destination_hops);
 				break;
 			case(PROVIDER):
-				printf("Node: %-5li has a provider path to the destination\n", G->adj[i]->id);
+				printf("%-5li (PROVIDER,    %2d)\n", G->adj[i]->id, G->adj[i]->destination_hops);
 				break;
 			case(NO_ROUTE):
-				printf("Node: %-5li has no path to the destination\n", G->adj[i]->id);
+				printf("%-5li (UNUSABLE,    %2d)\n", G->adj[i]->id, G->adj[i]->destination_hops);
 				break;
 			default:
 				printf("Something wrong happened with the path type resolution\n");
@@ -298,7 +278,7 @@ int main(int argc, char **argv){
 	printf("There are %d nodes and %d edges!\n", G->V, G->E);
 	
 	// Doing some magic here
-	findPath(G, destination, DESTINATION);
+	findPath(G, destination, DESTINATION, 0);
 	printResult(G);
 	
 	memoryCheck(G);
