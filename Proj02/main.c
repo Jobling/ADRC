@@ -73,7 +73,7 @@ link newNode(long id, int relationship, link next){
 	v->relationship = relationship;
 	v->path_type = NO_ROUTE;
 	v->destination_hops = -1;
-	v->next = next;	
+	v->next = next;
 
 	return v;
 }
@@ -126,7 +126,7 @@ void findPath(Graph * G, long id, int relationship, int n){
 	if(l == NULL){
 		printf("There was some kind of error while finding path type\n");
 		n--;
-		return n;
+		return;
 	}
 	if((relationship == DESTINATION) || (relationship == CUSTOMER)){
 		l->path_type = relationship;
@@ -228,7 +228,7 @@ Function used to print the list of the path_types
 */
 void printResult(Graph * G){
 	int i;
-	printf("Node\t\t\tPath (Type, Hops)\n")
+	printf("Node\t\t\tPath (Type, Hops)\n");
 	for(i = 0; i < G->V; i++)
 		switch(G->adj[i]->path_type){
 			case(DESTINATION):
