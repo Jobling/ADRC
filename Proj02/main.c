@@ -122,7 +122,7 @@ void findPath(Graph * G, long id, int relationship){
 			l = G->adj[i];
 		
 	if(l == NULL){
-		printf("There was some kind of error while finding path type");
+		printf("There was some kind of error while finding path type\n");
 		return;
 	}	
 	switch(relationship){
