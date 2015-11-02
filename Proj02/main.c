@@ -14,6 +14,7 @@ because of the usage.
 #define DESTINATION 0
 
 #define BUFFSIZE 64
+#define NETSIZE 65536
 
 // ------------------------------------------- Data Structures -------------------------------------
 typedef struct node * link;
@@ -52,7 +53,6 @@ struct node{
 };
 
 typedef struct{
-	long id;
 	path P;
 	link next;
 } AS;
@@ -63,9 +63,9 @@ size of the network, and the relationships between
 the nodes (adjency list) 
 */
 typedef struct{
-	int V;
-	int E;
-	AS ** list;
+	long V;
+	long E;
+	AS list[NETSIZE];
 }Graph;
 
 // ----------------------------------------------- Functions ---------------------------------------
@@ -95,96 +95,63 @@ link newNode(long id, int relationship, link next){
 	return v;
 }
 
-AS * newAS(long id){
-	AS * a = (AS *) malloc(sizeof(AS));
-	
-	a->id = id;
-	a->P.type = NO_ROUTE;
-	a->P.hops = -1;
-	a->next = NULL;
-	
-	return a;
-}
-
 /*
 Insert a relationship into the graph
 Assuming no verification has been done yet.
 */
 void graphInsertE(Graph * G, Edge e){
-	int i;
-	for(i = 0; i < G->V; i++){
-		// If there is a tail node in the list, we just add the head node
-		if(G->list[i]->id == e->tail){
-			G->list[i]->next = newNode(e->head, e->relationship, G->list[i]->next);
-			G->E++;
-			free(e);
-			return;
-		}
-	}
-	
-	// There is no tail node
-	// Creating the tail node
-	G->V++;
-	if((G->list = (AS **) realloc(G->list, G->V * sizeof(AS *))) == NULL){
-			printf("Dynamic memory allocation error (realloc)\n");
-			exit(1);
-	}
-	// Adding tail node
-	G->list[G->V - 1] = newAS(e->tail);
-	// Adding head node
-	G->list[G->V - 1]->next = newNode(e->head, e->relationship, G->list[G->V - 1]->next);
+	if(G->list[e->tail].next == NULL)
+		G->V++;
+	G->list[e->tail].next = newNode(e->head, e->relationship, G->list[e->tail].next);
 	G->E++;
-
 	free(e);
+	return;
 }
-
+ 
 /*
 Recursive algorithm that finds the type of path to a given node
 Eventualy we shall pass a 'hop' value as argument
 */
 void findPath(Graph * G, long id, int relationship, int n){
-	int i;
 	link aux;
-	AS * l = NULL;
 	
-	// Getting targeted node's neighbors
-	for(i = 0; i < G->V; i++)
-		if(G->list[i]->id == id)
-			l = G->list[i];
-		
-	if(l == NULL){
-		printf("There was some kind of error while finding path type\n");
-		return;
-	}
+	
 	if((relationship == DESTINATION) || (relationship == CUSTOMER)){
-		l->P.type = relationship;
-		if((l->P.hops == -1) || (l->P.hops < n)) l->P.hops = n;
-		n++;
-		for(aux = l->next; aux != NULL; aux = aux->next)
-			switch(aux->relationship){
-				case(CUSTOMER):
-					findPath(G, aux->id, PROVIDER, n);
-					break;
-				case(PEER):
-					findPath(G, aux->id, PEER, n);
-					break;
-				case(PROVIDER):
-					findPath(G, aux->id, CUSTOMER, n);
-					break;
-				default:
-					printf("Some kind of error occurred with the relationships while finding path type [recursive]\n");
-					break;
-			}
+		G->list[id].P.type = relationship;
+		if((G->list[id].P.hops == -1) || (G->list[id].P.hops < n)){ 
+			G->list[id].P.hops = n;
+			n++;
+			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
+				switch(aux->relationship){
+					case(CUSTOMER):
+						findPath(G, aux->id, PROVIDER, n);
+						break;
+					case(PEER):
+						findPath(G, aux->id, PEER, n);
+						break;
+					case(PROVIDER):
+						findPath(G, aux->id, CUSTOMER, n);
+						break;
+					default:
+						printf("Some kind of error occurred with the relationships while finding path type [recursive]\n");
+						break;
+				}
+		}
 	}else{
-		if(l->P.type > relationship){ 
-			l->P.type = relationship;
-			l->P.hops = n;
-		}else if((l->P.type == relationship) && (l->P.hops > n))
-			l->P.hops = n;
-		n++;
-		for(aux = l->next; aux != NULL; aux = aux->next)
-			if(aux->relationship == CUSTOMER)
-				findPath(G, aux->id, PROVIDER, n);	
+		if(G->list[id].P.type > relationship){ 
+			G->list[id].P.type = relationship;
+			G->list[id].P.hops = n;
+			n++;
+			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
+				if(aux->relationship == CUSTOMER)
+					findPath(G, aux->id, PROVIDER, n);
+		}else if((G->list[id].P.type == relationship) && (G->list[id].P.hops > n)){
+			G->list[id].P.hops = n;
+			n++;
+			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
+				if(aux->relationship == CUSTOMER)
+					findPath(G, aux->id, PROVIDER, n);	
+		}
 	}
 }
 
@@ -196,6 +163,7 @@ Graph * readGraph(char * filename){
 	Graph * G;
 	char linha[BUFFSIZE];
 	long head, tail;
+	long i;
 	int relationship;
 
 	// Opening the file with a 'read' flag
@@ -208,9 +176,12 @@ Graph * readGraph(char * filename){
 	G = (Graph *) malloc(sizeof(Graph));
 	G->V = 0;
 	G->E = 0;
-	// A memória para a lista será alocada dinamicamente, posteriormente
-	G->list = NULL;
-
+	for(i = 0; i < NETSIZE; i++){
+		G->list[i].next = NULL;
+		G->list[i].P.hops = -1;
+		G->list[i].P.type = NO_ROUTE;
+	}
+	
 	// Node addition from file input
 	while(fgets(linha, BUFFSIZE, fp) != NULL){
 		/*
@@ -245,12 +216,10 @@ void delLinks(link l){
 Function used to free used memory when exiting cleanly from the program.
 */
 void memoryCheck(Graph * G){
-	int i;
-	for(i = 0; i < G->V; i++){ 
-		delLinks(G->list[i]->next);
-		free(G->list[i]);
-	}
-	free(G->list);
+	long i;
+	for(i = 0; i < NETSIZE; i++)
+		if(G->list[i].next != NULL)
+			delLinks(G->list[i].next);
 	free(G);
 }
 
@@ -258,29 +227,30 @@ void memoryCheck(Graph * G){
 Function used to print the list of the path_types
 */
 void printResult(Graph * G){
-	int i;
+	long i;
 	printf("Node\t\t\tPath (Type, Hops)\n");
 	for(i = 0; i < G->V; i++)
-		switch(G->list[i]->P.type){
-			case(DESTINATION):
-				printf("%-5li (DESTINATION, %2d)\n", G->list[i]->id, G->list[i]->P.hops);
-				break;
-			case(CUSTOMER):
-				printf("%-5li (CUSTOMER,    %2d)\n", G->list[i]->id, G->list[i]->P.hops);
-				break;
-			case(PEER):
-				printf("%-5li (PEER,        %2d)\n", G->list[i]->id, G->list[i]->P.hops);
-				break;
-			case(PROVIDER):
-				printf("%-5li (PROVIDER,    %2d)\n", G->list[i]->id, G->list[i]->P.hops);
-				break;
-			case(NO_ROUTE):
-				printf("%-5li (UNUSABLE,    %2d)\n", G->list[i]->id, G->list[i]->P.hops);
-				break;
-			default:
-				printf("Something wrong happened with the path type resolution\n");
-				break;
-		}
+		if(G->list[i].P.hops != -1)
+			switch(G->list[i].P.type){
+				case(DESTINATION):
+					printf("%-5li (DESTINATION, %2d)\n", i, G->list[i].P.hops);
+					break;
+				case(CUSTOMER):
+					printf("%-5li (CUSTOMER,    %2d)\n", i, G->list[i].P.hops);
+					break;
+				case(PEER):
+					printf("%-5li (PEER,        %2d)\n", i, G->list[i].P.hops);
+					break;
+				case(PROVIDER):
+					printf("%-5li (PROVIDER,    %2d)\n", i, G->list[i].P.hops);
+					break;
+				case(NO_ROUTE):
+					printf("%-5li (UNUSABLE,    %2d)\n", i, G->list[i].P.hops);
+					break;
+				default:
+					printf("Something wrong happened with the path type resolution\n");
+					break;
+			}
 }
 
 
@@ -306,7 +276,7 @@ int main(int argc, char **argv){
 	G = readGraph(filename);
 	
 	printf("The file %s was loaded successfully to the Graph\n", filename);
-	printf("There are %d nodes and %d edges!\n", G->V, G->E);
+	printf("There are %li nodes and %li edges!\n", G->V, G->E);
 	
 	// Doing some magic here
 	findPath(G, destination, DESTINATION, 0);
