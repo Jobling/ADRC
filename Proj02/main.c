@@ -112,6 +112,82 @@ void graphInsertE(Graph * G, Edge e){
 	free(e);
 	return;
 }
+
+/*
+Function to evaluate current node Path and set a flag for subsequent calls of findPath
+-1 -> Older path is better
+ 1 -> New path is better - Broadcast
+ 0 -> New path is better - Send to customers only 
+*/
+int setPath(path * P, int type, int hops){
+	switch(type){
+		case(DESTINATION):
+			P->type = type;
+			P->hops = hops;
+			return 1;
+			
+		case(CUSTOMER):
+			switch(P->type){
+				case(PROVIDER):
+					N_PROVIDER--;
+					break;
+				case(PEER):
+					N_PEER--;
+					break;
+				case(CUSTOMER):
+					if(hops < P->hops){
+						P->hops = hops;
+						return 1;
+					}
+				case(DESTINATION):
+					return -1;
+			}
+			// Only nodes with current NO_ROUTE, PROVIDER and PEER paths get here
+			P->type = type;
+			P->hops = hops;
+			N_CUSTOMER++;
+			return 1;
+			
+		case(PEER):
+			switch(P->type){
+				case(PROVIDER):
+					N_PROVIDER--;
+					break;
+				case(PEER):
+					if(hops < P->hops){
+						P->hops = hops;
+						return 0;
+					}
+				case(CUSTOMER):
+				case(DESTINATION):
+					return -1;
+			}
+			// Only nodes with current NO_ROUTE and PROVIDER
+			P->type = type;
+			P->hops = hops;
+			N_PEER++;
+			return 0;
+			
+		case(PROVIDER):
+			switch(P->type){
+				case(PROVIDER):
+					if(hops < P->hops){
+						P->hops = hops;
+						return 0;					
+					}else return -1;
+				case(PEER):
+				case(CUSTOMER):
+				case(DESTINATION):
+					return -1;
+			}
+			// Only nodes with current NO_ROUTE
+			P->type = type;
+			P->hops = hops;
+			N_PROVIDER++;
+			return 0;
+	}
+	return 2;
+}
  
 /*
 Recursive algorithm that finds the type of path to a given node
@@ -119,52 +195,23 @@ Eventualy we shall pass a 'hop' value as argument
 */
 void findPath(Graph * G, long id, int relationship, int n){
 	link aux;
+	int broadcast = 0;
 
-	if((relationship == DESTINATION) || (relationship == CUSTOMER)){
-		switch(G->list[id].P.type){
-			case(PROVIDER):
-				N_PROVIDER--;
-				break;
-			case(PEER):
-				N_PEER--;
-				break;
-		}
-		G->list[id].P.type = relationship;
-		if((G->list[id].P.hops == -1) || (G->list[id].P.hops < n)){ 
-			G->list[id].P.hops = n;
-			n++;
-			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
-				switch(aux->relationship){
-					case(CUSTOMER):
-						findPath(G, aux->id, PROVIDER, n);
-						break;
-					case(PEER):
-						findPath(G, aux->id, PEER, n);
-						break;
-					case(PROVIDER):
-						findPath(G, aux->id, CUSTOMER, n);
-						break;
-					default:
-						printf("Some kind of error occurred with the relationships while finding path type [recursive]\n");
-						break;
-				}
-		}
-	}else{
-		if(G->list[id].P.type > relationship){ 
-			G->list[id].P.type = relationship;
-			G->list[id].P.hops = n;
-			n++;
-			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
-				if(aux->relationship == CUSTOMER)
-					findPath(G, aux->id, PROVIDER, n);
-		}else if((G->list[id].P.type == relationship) && (G->list[id].P.hops > n)){
-			G->list[id].P.hops = n;
-			n++;
-			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
-				if(aux->relationship == CUSTOMER)
-					findPath(G, aux->id, PROVIDER, n);	
-		}
+	broadcast = setPath(&(G->list[id].P), relationship, n);
+	if (broadcast == -1) return;
+	if (broadcast == 2){ 
+		printf("Something wrong with %li %d %d\n", id, relationship, n);
+		exit(0);
 	}
+	n++;
+	for(aux = G->list[id].next; aux != NULL; aux = aux->next)
+		if(aux->relationship == CUSTOMER)
+			findPath(G, aux->id, PROVIDER, n);
+		else if((aux->relationship == PEER) && (broadcast == 1))
+			findPath(G, aux->id, PEER, n);
+		else if((aux->relationship == PROVIDER) && (broadcast == 1))
+			findPath(G, aux->id, CUSTOMER, n);
+
 }
 
 /*
@@ -255,8 +302,8 @@ Function used to print the list of the path_types
 void printResult(Graph * G){
 	long i;
 	printf("Node\t\t\tPath (Type, Hops)\n");
-	for(i = 0; i < G->V; i++)
-		if(G->list[i].P.hops != -1)
+	for(i = 0; i < NETSIZE; i++)
+		if(G->list[i].next != NULL)
 			switch(G->list[i].P.type){
 				case(DESTINATION):
 					printf("%-5li (DESTINATION, %2d)\n", i, G->list[i].P.hops);
