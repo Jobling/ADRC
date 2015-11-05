@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// ----------------------------------------------- MACROS ---------------------------------------
+// ------------------------------------- MACROS and GLOBAL VARIABLES -------------------------------
 /*
 Using inverse notation from the project description
 because of the usage.
@@ -15,6 +15,11 @@ because of the usage.
 
 #define BUFFSIZE 64
 #define NETSIZE 65536
+
+long N_PROVIDER = 0;
+long N_PEER = 0;
+long N_CUSTOMER = 0;
+long N_UNUSABLE = 0;
 
 // ------------------------------------------- Data Structures -------------------------------------
 typedef struct node * link;
@@ -114,9 +119,16 @@ Eventualy we shall pass a 'hop' value as argument
 */
 void findPath(Graph * G, long id, int relationship, int n){
 	link aux;
-	
-	
+
 	if((relationship == DESTINATION) || (relationship == CUSTOMER)){
+		switch(G->list[id].P.type){
+			case(PROVIDER):
+				N_PROVIDER--;
+				break;
+			case(PEER):
+				N_PEER--;
+				break;
+		}
 		G->list[id].P.type = relationship;
 		if((G->list[id].P.hops == -1) || (G->list[id].P.hops < n)){ 
 			G->list[id].P.hops = n;
@@ -224,6 +236,20 @@ void memoryCheck(Graph * G){
 }
 
 /*
+This function prevents the usage of 'leftover values' from previous
+calls to findPath 
+*/
+void memoryReset(Graph * G){
+	long i;
+	for(i = 0; i < NETSIZE; i++){
+		if(G->list[i].next != NULL){
+			G->list[i].P.hops = -1;
+			G->list[i].P.type = NO_ROUTE;
+		}
+	}
+}
+
+/*
 Function used to print the list of the path_types
 */
 void printResult(Graph * G){
@@ -259,17 +285,14 @@ int main(int argc, char **argv){
 	Graph * G;
 	char filename[BUFFSIZE];
 	long destination;
+	long i;
 
 	// Obtaining filename from arguments
-	if(argc != 3){
+	if(argc < 2 || argc > 3){
 		printf("Wrong number of arguments.\n");
 		exit(1);
 	}
 	sscanf(argv[1], "%s", filename);
-	if(sscanf(argv[2], "%li", &destination) != 1){
-		printf("Destination must be a long integer!\n");
-		exit(0);
-	}
 
 	// Reading Graph
 	printf("Reading file\n");
@@ -279,9 +302,25 @@ int main(int argc, char **argv){
 	printf("There are %li nodes and %li edges!\n", G->V, G->E);
 	
 	// Doing some magic here
-	findPath(G, destination, DESTINATION, 0);
-	printResult(G);
+	if(argc == 3){
+		if(sscanf(argv[2], "%li", &destination) != 1){
+			printf("Destination must be a long integer!\n");
+			memoryCheck(G);
+			exit(0);
+		}
+		findPath(G, destination, DESTINATION, 0);
+		printResult(G);
+	}else{
+		for(i = 0; i < NETSIZE; i++){
+			if(G->list[i].next != NULL){
+				findPath(G, i, DESTINATION, 0);
+				memoryReset(G);
+			}
+		}
+		N_UNUSABLE = (G->V * (G->V - 1)) - (N_PROVIDER + N_PEER + N_CUSTOMER);
+	}
 	
+	printf("Found %li Provider paths, %li Peer paths, %li Customer paths and %li Unusable Paths\n", N_PROVIDER, N_PEER, N_CUSTOMER, N_UNUSABLE);
 	memoryCheck(G);
 	exit(0);
 }
