@@ -22,61 +22,63 @@ long N_CUSTOMER = 0;
 long N_UNUSABLE = 0;
 
 // ------------------------------------------- Data Structures -------------------------------------
-typedef struct node * link;
-typedef struct edge * Edge;
-
 /*
-Each path is caracterized by a path type (defined in the MACROS)
-and a number of hops
-Eventually it will be stored in a matrix, or it will hold the id of
-the destination
+ * Each path is caracterized by a path type (defined in the MACROS)
+ * and a number of hops
+ * Aditionally it is stored the id of the node associated with the 
+ * path (prev_id)
 */
-typedef struct{
+typedef struct path{
 	int type;
 	int hops;
 	long prev_id;
 } path;
 
 /*
-Each edge should contain an identifier for both
-tail and head, and even the relationship from tail to head
+ * Each edge should contain an identifier for both
+ * tail and head, and even the relationship from tail to head
 */
-struct edge{
+typedef struct edge{
 	long tail;
 	long head;
 	int relationship;
-};
+} * Edge;
 
 /*
-Each node should contain an identifier
-A pointer to the next node (in adjency list)
-And a relationship identifier 
+ * Each node should contain an identifier
+ * A pointer to the next node (in adjency list)
+ * And a relationship identifier 
 */
-struct node{
+typedef struct node{
 	long id;
 	int relationship;
-	link next;
-};
+	struct node * next;
+} * link;
 
-typedef struct{
+/*
+ * The AS structure is the structure that will be stored as the 
+ * first element on the adjency list. It represents the node, and the
+ * path from the node to the target destination 
+*/
+typedef struct AS{
 	path P;
 	link next;
 } AS;
 
 /*
-The graph should contain information about the
-size of the network, and the relationships between
-the nodes (adjency list) 
+ * The graph should contain information about the
+ * size of the network, and the relationships between
+ * the nodes (adjency list) 
 */
-typedef struct{
+typedef struct graph{
 	long V;
 	long E;
 	AS list[NETSIZE];
-}Graph;
+} * Graph;
 
 // ----------------------------------------------- Functions ---------------------------------------
 /*
-Create a new edge to be used in other functions
+ * Create a new edge to be used in other functions
 */
 Edge newE(long tail, long head, int relationship){
 	Edge e = (Edge) malloc(sizeof(struct edge));
@@ -89,7 +91,7 @@ Edge newE(long tail, long head, int relationship){
 }
 
 /*
-Create a new node and return it
+ * Create a new node to be used in graphInsertE
 */
 link newNode(long id, int relationship, link next){
 	link v = (link) malloc(sizeof(struct node));
@@ -102,10 +104,9 @@ link newNode(long id, int relationship, link next){
 }
 
 /*
-Insert a relationship into the graph
-Assuming no verification has been done yet.
+ * Insert a relationship into the graph
 */
-void graphInsertE(Graph * G, Edge e){
+void graphInsertE(Graph G, Edge e){
 	if(G->list[e->tail].next == NULL)
 		G->V++;
 	G->list[e->tail].next = newNode(e->head, e->relationship, G->list[e->tail].next);
@@ -163,7 +164,7 @@ int setPath(path * P, int type, int hops){
 				case(DESTINATION):
 					return -1;
 			}
-			// Only nodes with current NO_ROUTE and PROVIDER
+			// Only nodes with current NO_ROUTE and PROVIDER get here
 			P->type = type;
 			P->hops = hops;
 			N_PEER++;
@@ -181,20 +182,22 @@ int setPath(path * P, int type, int hops){
 				case(DESTINATION):
 					return -1;
 			}
-			// Only nodes with current NO_ROUTE
+			// Only nodes with current NO_ROUTE get here
 			P->type = type;
 			P->hops = hops;
 			N_PROVIDER++;
 			return 0;
 	}
-	return 2;
+	printf("An exception as occured with Path: type-%d hops-%d\n", P->type, P->hops);
+	printf("and type-%d hops-%d\n", type, hops);
+	return -1;
 }
  
 /*
-Recursive algorithm that finds the type of path to a given node
-Eventualy we shall pass a 'hop' value as argument
+ * Recursive algorithm that finds the type and number of hops for
+ * a path to a given destination node
 */
-void findPath(Graph * G, int relationship, int n, long id, long prev_id){
+void findPath(Graph G, int relationship, int n, long id, long prev_id){
 	link aux;
 	int broadcast = 0;
 	
@@ -221,11 +224,11 @@ void findPath(Graph * G, int relationship, int n, long id, long prev_id){
 }
 
 /*
-Read the graph from a file and store it in a Graph * named G
+ * Read the graph from a file and store it in a Graph * named G
 */
-Graph * readGraph(char * filename){
+Graph readGraph(char * filename){
 	FILE *fp;
-	Graph * G;
+	Graph G;
 	char linha[BUFFSIZE];
 	long head, tail;
 	long i;
@@ -238,7 +241,7 @@ Graph * readGraph(char * filename){
 	}
 
 	// Creating graph with no nodes
-	G = (Graph *) malloc(sizeof(Graph));
+	G = (Graph) malloc(sizeof(struct graph));
 	G->V = 0;
 	G->E = 0;
 	for(i = 0; i < NETSIZE; i++){
@@ -268,7 +271,7 @@ Graph * readGraph(char * filename){
 }
 
 /*
-Auxiliary function used when deleting all the entries for the adjancy list
+ * Auxiliary function used when deleting all the entries for the adjancy list
 */
 void delLinks(link l){
 	if(l->next != NULL){
@@ -279,9 +282,9 @@ void delLinks(link l){
 }
 
 /*
-Function used to free used memory when exiting cleanly from the program.
+ * Function used to free used memory when exiting cleanly from the program.
 */
-void memoryCheck(Graph * G){
+void memoryCheck(Graph G){
 	long i;
 	for(i = 0; i < NETSIZE; i++)
 		if(G->list[i].next != NULL)
@@ -290,10 +293,10 @@ void memoryCheck(Graph * G){
 }
 
 /*
-This function prevents the usage of 'leftover values' from previous
-calls to findPath 
+ * This function prevents the usage of 'leftover values' from previous
+ * calls to findPath 
 */
-void memoryReset(Graph * G){
+void memoryReset(Graph G){
 	long i;
 	for(i = 0; i < NETSIZE; i++){
 		if(G->list[i].next != NULL){
@@ -305,9 +308,9 @@ void memoryReset(Graph * G){
 }
 
 /*
-Function used to print the list of the path_types
+ * Function used to print the list of the path_types
 */
-void printResult(Graph * G, long destination){
+void printResult(Graph G, long destination){
 	long i;
 	N_UNUSABLE = (G->V - 1) - (N_PROVIDER + N_PEER + N_CUSTOMER);
 	printf("Node\t\tPath (Type, Hops)\n");
@@ -338,7 +341,10 @@ void printResult(Graph * G, long destination){
 					N_PROVIDER, N_PEER, N_CUSTOMER, N_UNUSABLE, destination);
 }
 
-void printStat(Graph * G){
+/*
+ * Function used to print statistics from a given graph
+*/
+void printStat(Graph G){
 	N_UNUSABLE = (G->V * (G->V - 1)) - (N_PROVIDER + N_PEER + N_CUSTOMER);
 	printf("In %li paths there are:\n", (G->V * (G->V - 1)));
 	printf("Provider Paths:\t %-5li [%-3.1f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/(G->V * (G->V - 1)));
@@ -350,7 +356,7 @@ void printStat(Graph * G){
 
 // ----------------------------------------------- Main --------------------------------------------
 int main(int argc, char **argv){
-	Graph * G;
+	Graph G;
 	char filename[BUFFSIZE];
 	long destination;
 	long i;
@@ -369,15 +375,17 @@ int main(int argc, char **argv){
 	printf("The file %s was loaded successfully to the Graph\n", filename);
 	printf("There are %li nodes and %li edges!\n", G->V, G->E);
 	
-	// Doing some magic here
+	// In case there is a second argument, it is the target destination
 	if(argc == 3){
 		if(sscanf(argv[2], "%li", &destination) != 1){
-			printf("Destination must be a long integer!\n");
+			printf("Destination must be a integer!\n");
 			memoryCheck(G);
 			exit(0);
 		}
 		findPath(G, DESTINATION, 0, destination, -1);
 		printResult(G, destination);
+	// Otherwise, the algorithm is run for every possible destination,
+	// and the network statistics are generated (and printed)
 	}else{
 		for(i = 0; i < NETSIZE; i++){
 			if(G->list[i].next != NULL){
@@ -388,6 +396,8 @@ int main(int argc, char **argv){
 		printStat(G);
 	}
 	
+	// Free Memory allocated previously
 	memoryCheck(G);
 	exit(0);
 }
+
