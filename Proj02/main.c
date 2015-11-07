@@ -34,6 +34,7 @@ the destination
 typedef struct{
 	int type;
 	int hops;
+	long prev_id;
 } path;
 
 /*
@@ -193,25 +194,30 @@ int setPath(path * P, int type, int hops){
 Recursive algorithm that finds the type of path to a given node
 Eventualy we shall pass a 'hop' value as argument
 */
-void findPath(Graph * G, long id, int relationship, int n){
+void findPath(Graph * G, int relationship, int n, long id, long prev_id){
 	link aux;
 	int broadcast = 0;
-
+	
+	if(G->list[id].P.prev_id == prev_id){
+		G->list[id].P.type = relationship;
+		G->list[id].P.hops = n;
+	}
 	broadcast = setPath(&(G->list[id].P), relationship, n);
 	if (broadcast == -1) return;
-	if (broadcast == 2){ 
-		printf("Something wrong with %li %d %d\n", id, relationship, n);
-		exit(0);
-	}
+	
+	G->list[id].P.prev_id = prev_id;
+	
 	n++;
 	for(aux = G->list[id].next; aux != NULL; aux = aux->next)
-		if(aux->relationship == CUSTOMER)
-			findPath(G, aux->id, PROVIDER, n);
-		else if((aux->relationship == PEER) && (broadcast == 1))
-			findPath(G, aux->id, PEER, n);
-		else if((aux->relationship == PROVIDER) && (broadcast == 1))
-			findPath(G, aux->id, CUSTOMER, n);
-
+		if(aux->id == prev_id)
+			continue;
+		else
+			if(aux->relationship == CUSTOMER)
+				findPath(G, PROVIDER, n, aux->id, id);
+			else if((aux->relationship == PEER) && (broadcast == 1))
+				findPath(G, PEER, n, aux->id, id);
+			else if((aux->relationship == PROVIDER) && (broadcast == 1))
+				findPath(G, CUSTOMER, n, aux->id, id);
 }
 
 /*
@@ -238,6 +244,7 @@ Graph * readGraph(char * filename){
 	for(i = 0; i < NETSIZE; i++){
 		G->list[i].next = NULL;
 		G->list[i].P.hops = -1;
+		G->list[i].P.prev_id = -1;
 		G->list[i].P.type = NO_ROUTE;
 	}
 	
@@ -291,6 +298,7 @@ void memoryReset(Graph * G){
 	for(i = 0; i < NETSIZE; i++){
 		if(G->list[i].next != NULL){
 			G->list[i].P.hops = -1;
+			G->list[i].P.prev_id = -1;
 			G->list[i].P.type = NO_ROUTE;
 		}
 	}
@@ -299,33 +307,46 @@ void memoryReset(Graph * G){
 /*
 Function used to print the list of the path_types
 */
-void printResult(Graph * G){
+void printResult(Graph * G, long destination){
 	long i;
-	printf("Node\t\t\tPath (Type, Hops)\n");
+	N_UNUSABLE = (G->V - 1) - (N_PROVIDER + N_PEER + N_CUSTOMER);
+	printf("Node\t\tPath (Type, Hops)\n");
 	for(i = 0; i < NETSIZE; i++)
 		if(G->list[i].next != NULL)
 			switch(G->list[i].P.type){
 				case(DESTINATION):
-					printf("%-5li (DESTINATION, %2d)\n", i, G->list[i].P.hops);
+					printf("%-5li\t\t(DESTINATION, %2d)\n", i, G->list[i].P.hops);
 					break;
 				case(CUSTOMER):
-					printf("%-5li (CUSTOMER,    %2d)\n", i, G->list[i].P.hops);
+					printf("%-5li\t\t(CUSTOMER,    %2d)\n", i, G->list[i].P.hops);
 					break;
 				case(PEER):
-					printf("%-5li (PEER,        %2d)\n", i, G->list[i].P.hops);
+					printf("%-5li\t\t(PEER,        %2d)\n", i, G->list[i].P.hops);
 					break;
 				case(PROVIDER):
-					printf("%-5li (PROVIDER,    %2d)\n", i, G->list[i].P.hops);
+					printf("%-5li\t\t(PROVIDER,    %2d)\n", i, G->list[i].P.hops);
 					break;
 				case(NO_ROUTE):
-					printf("%-5li (UNUSABLE,    %2d)\n", i, G->list[i].P.hops);
+					printf("%-5li\t\t(UNUSABLE,    %2d)\n", i, G->list[i].P.hops);
 					break;
 				default:
 					printf("Something wrong happened with the path type resolution\n");
 					break;
 			}
+	printf("---------------\n");
+	printf("Found %li Provider paths, %li Peer paths, %li Customer paths and %li Unusable Paths to %li\n", 
+					N_PROVIDER, N_PEER, N_CUSTOMER, N_UNUSABLE, destination);
 }
 
+void printStat(Graph * G){
+	N_UNUSABLE = (G->V * (G->V - 1)) - (N_PROVIDER + N_PEER + N_CUSTOMER);
+	printf("In %li paths there are:\n", (G->V * (G->V - 1)));
+	printf("Provider Paths:\t %-5li [%-3.1f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/(G->V * (G->V - 1)));
+	printf("Peer Paths:\t %-5li [%-3.1f\%%]\n", N_PEER, (N_PEER * 100.0)/(G->V * (G->V - 1)));
+	printf("Customer Paths:\t %-5li [%-3.1f\%%]\n", N_CUSTOMER, (N_CUSTOMER * 100.0)/(G->V * (G->V - 1)));
+	printf("Unusable Paths:\t %-5li [%-3.1f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/(G->V * (G->V - 1)));
+	printf("--------------------------------------------\n");
+}
 
 // ----------------------------------------------- Main --------------------------------------------
 int main(int argc, char **argv){
@@ -355,19 +376,18 @@ int main(int argc, char **argv){
 			memoryCheck(G);
 			exit(0);
 		}
-		findPath(G, destination, DESTINATION, 0);
-		printResult(G);
+		findPath(G, DESTINATION, 0, destination, -1);
+		printResult(G, destination);
 	}else{
 		for(i = 0; i < NETSIZE; i++){
 			if(G->list[i].next != NULL){
-				findPath(G, i, DESTINATION, 0);
+				findPath(G, DESTINATION, 0, i, -1);
 				memoryReset(G);
 			}
 		}
-		N_UNUSABLE = (G->V * (G->V - 1)) - (N_PROVIDER + N_PEER + N_CUSTOMER);
+		printStat(G);
 	}
 	
-	printf("Found %li Provider paths, %li Peer paths, %li Customer paths and %li Unusable Paths\n", N_PROVIDER, N_PEER, N_CUSTOMER, N_UNUSABLE);
 	memoryCheck(G);
 	exit(0);
 }
