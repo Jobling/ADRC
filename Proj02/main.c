@@ -216,16 +216,10 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 	
 	// If the same neighbor is sending new information, it's because its
 	// information is better now. 
-	if(G->list[id].P.prev_id == prev_id){
-		G->list[id].P.type = relationship;
-		G->list[id].P.hops = n;
-	}
+	if(G->list[id].P.prev_id == prev_id) G->list[id].P.hops = n;
+		
 	// It's still needed to compute if this new information should be broadcasted
-	broadcast = setPath(&(G->list[id].P), relationship, n);
-	
-	if (broadcast == -1) 
-		return;
-	else{
+	if ((broadcast = setPath(&(G->list[id].P), relationship, n)) != -1){
 		G->list[id].P.prev_id = prev_id;
 		n++;
 		for(aux = G->list[id].next; aux != NULL; aux = aux->next)
@@ -239,7 +233,7 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 				else if((aux->relationship == PROVIDER) && (broadcast == 1))
 					findPath(G, CUSTOMER, n, aux->id, id);	
 	}
-	
+	return;
 }
 
 /*
