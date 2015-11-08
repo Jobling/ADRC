@@ -122,12 +122,17 @@ Function to evaluate current node Path and set a flag for subsequent calls of fi
  0 -> New path is better - Send to customers only 
 */
 int setPath(path * P, int type, int hops){
+	// This first switch is meant to know from what type of node is the information coming
 	switch(type){
+		// This case only happens for the destination, and it's immediatly taken as the best case
 		case(DESTINATION):
 			P->type = type;
 			P->hops = hops;
 			return 1;
 			
+		// This case, excluding DESTINATION, is the best, so its path type is always taken.
+		// Afterwards, if the previous stored path was also a CUSTOMER path, it's needed to
+		// check for the best number of hops.
 		case(CUSTOMER):
 			switch(P->type){
 				case(PROVIDER):
@@ -150,6 +155,10 @@ int setPath(path * P, int type, int hops){
 			N_CUSTOMER++;
 			return 1;
 			
+		// For this case, the same happens as with the previous case, but on a worst case: PEER.
+		// If the previous stored case is better than PEER, there is no use in broadcasting the information
+		// The only possible return types for this case are -1: path is worse or 0: path is better, send to 
+		// customers only
 		case(PEER):
 			switch(P->type){
 				case(PROVIDER):
@@ -170,6 +179,8 @@ int setPath(path * P, int type, int hops){
 			N_PEER++;
 			return 0;
 			
+		// Really similar to the PEER case. Before counting the number of different paths, this used to be the same
+		// if clause. Now it's not as easy to do so.	
 		case(PROVIDER):
 			switch(P->type){
 				case(PROVIDER):
@@ -188,6 +199,8 @@ int setPath(path * P, int type, int hops){
 			N_PROVIDER++;
 			return 0;
 	}
+	// No case should return here. If it returns, prints out a warning, and it doesn't broadcast, so that 
+	// the error can not be propagated
 	printf("An exception as occured with Path: type-%d hops-%d\n", P->type, P->hops);
 	printf("and type-%d hops-%d\n", type, hops);
 	return -1;
@@ -201,26 +214,32 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 	link aux;
 	int broadcast = 0;
 	
+	// If the same neighbor is sending new information, it's because its
+	// information is better now. 
 	if(G->list[id].P.prev_id == prev_id){
 		G->list[id].P.type = relationship;
 		G->list[id].P.hops = n;
 	}
+	// It's still needed to compute if this new information should be broadcasted
 	broadcast = setPath(&(G->list[id].P), relationship, n);
-	if (broadcast == -1) return;
 	
-	G->list[id].P.prev_id = prev_id;
+	if (broadcast == -1) 
+		return;
+	else{
+		G->list[id].P.prev_id = prev_id;
+		n++;
+		for(aux = G->list[id].next; aux != NULL; aux = aux->next)
+			if(aux->id == prev_id)
+				continue;
+			else
+				if(aux->relationship == CUSTOMER)
+					findPath(G, PROVIDER, n, aux->id, id);
+				else if((aux->relationship == PEER) && (broadcast == 1))
+					findPath(G, PEER, n, aux->id, id);
+				else if((aux->relationship == PROVIDER) && (broadcast == 1))
+					findPath(G, CUSTOMER, n, aux->id, id);	
+	}
 	
-	n++;
-	for(aux = G->list[id].next; aux != NULL; aux = aux->next)
-		if(aux->id == prev_id)
-			continue;
-		else
-			if(aux->relationship == CUSTOMER)
-				findPath(G, PROVIDER, n, aux->id, id);
-			else if((aux->relationship == PEER) && (broadcast == 1))
-				findPath(G, PEER, n, aux->id, id);
-			else if((aux->relationship == PROVIDER) && (broadcast == 1))
-				findPath(G, CUSTOMER, n, aux->id, id);
 }
 
 /*
