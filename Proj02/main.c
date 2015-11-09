@@ -14,6 +14,7 @@ because of the usage.
 #define DESTINATION 0
 
 #define BUFFSIZE 64
+#define HOPSIZE 50
 #define NETSIZE 65536
 
 long N_PROVIDER = 0;
@@ -73,6 +74,7 @@ typedef struct AS{
 typedef struct graph{
 	long V;
 	long E;
+	long N_HOPS[HOPSIZE];
 	AS list[NETSIZE];
 } * Graph;
 
@@ -114,97 +116,6 @@ void graphInsertE(Graph G, Edge e){
 	free(e);
 	return;
 }
-
-/*
-Function to evaluate current node Path and set a flag for subsequent calls of findPath
--1 -> Older path is better
- 1 -> New path is better - Broadcast
- 0 -> New path is better - Send to customers only 
-*/
-int setPath(path * P, int type, int hops){
-	// This first switch is meant to know from what type of node is the information coming
-	switch(type){
-		// This case only happens for the destination, and it's immediatly taken as the best case
-		case(DESTINATION):
-			P->type = type;
-			P->hops = hops;
-			return 1;
-			
-		// This case, excluding DESTINATION, is the best, so its path type is always taken.
-		// Afterwards, if the previous stored path was also a CUSTOMER path, it's needed to
-		// check for the best number of hops.
-		case(CUSTOMER):
-			switch(P->type){
-				case(PROVIDER):
-					N_PROVIDER--;
-					break;
-				case(PEER):
-					N_PEER--;
-					break;
-				case(CUSTOMER):
-					if(hops < P->hops){
-						P->hops = hops;
-						return 1;
-					}
-				case(DESTINATION):
-					return -1;
-			}
-			// Only nodes with current NO_ROUTE, PROVIDER and PEER paths get here
-			P->type = type;
-			P->hops = hops;
-			N_CUSTOMER++;
-			return 1;
-			
-		// For this case, the same happens as with the previous case, but on a worst case: PEER.
-		// If the previous stored case is better than PEER, there is no use in broadcasting the information
-		// The only possible return types for this case are -1: path is worse or 0: path is better, send to 
-		// customers only
-		case(PEER):
-			switch(P->type){
-				case(PROVIDER):
-					N_PROVIDER--;
-					break;
-				case(PEER):
-					if(hops < P->hops){
-						P->hops = hops;
-						return 0;
-					}
-				case(CUSTOMER):
-				case(DESTINATION):
-					return -1;
-			}
-			// Only nodes with current NO_ROUTE and PROVIDER get here
-			P->type = type;
-			P->hops = hops;
-			N_PEER++;
-			return 0;
-			
-		// Really similar to the PEER case. Before counting the number of different paths, this used to be the same
-		// if clause. Now it's not as easy to do so.	
-		case(PROVIDER):
-			switch(P->type){
-				case(PROVIDER):
-					if(hops < P->hops){
-						P->hops = hops;
-						return 0;					
-					}else return -1;
-				case(PEER):
-				case(CUSTOMER):
-				case(DESTINATION):
-					return -1;
-			}
-			// Only nodes with current NO_ROUTE get here
-			P->type = type;
-			P->hops = hops;
-			N_PROVIDER++;
-			return 0;
-	}
-	// No case should return here. If it returns, prints out a warning, and it doesn't broadcast, so that 
-	// the error can not be propagated
-	printf("An exception as occured with Path: type-%d hops-%d\n", P->type, P->hops);
-	printf("and type-%d hops-%d\n", type, hops);
-	return -1;
-}
  
 /*
  * Recursive algorithm that finds the type and number of hops for
@@ -217,21 +128,47 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 	// If the same neighbor is sending new information, it's because its
 	// information is better now. 
 	if(G->list[id].P.prev_id == prev_id) G->list[id].P.hops = n;
-		
-	// It's still needed to compute if this new information should be broadcasted
-	if ((broadcast = setPath(&(G->list[id].P), relationship, n)) != -1){
-		G->list[id].P.prev_id = prev_id;
-		n++;
-		for(aux = G->list[id].next; aux != NULL; aux = aux->next)
-			if(aux->id == prev_id)
-				continue;
-			else
+	
+	if((relationship == DESTINATION) || (relationship == CUSTOMER)){
+		G->list[id].P.type = relationship;
+		if((G->list[id].P.hops == -1) || (G->list[id].P.hops < n)){ 
+			G->list[id].P.hops = n;
+			n++;
+			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
+				if(aux->id != prev_id)
+					switch(aux->relationship){
+						case(CUSTOMER):
+							findPath(G, PROVIDER, n, aux->id, id);
+							break;
+						case(PEER):
+							findPath(G, PEER, n, aux->id, id);
+							break;
+						case(PROVIDER):
+							findPath(G, CUSTOMER, n, aux->id, id);
+							break;
+						default:
+							printf("Some kind of error occurred with the relationships while finding path type [recursive]\n");
+							break;
+					}
+		}
+	}else{
+		if(G->list[id].P.type > relationship){ 
+			G->list[id].P.type = relationship;
+			G->list[id].P.hops = n;
+			n++;
+			
+			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
 				if(aux->relationship == CUSTOMER)
 					findPath(G, PROVIDER, n, aux->id, id);
-				else if((aux->relationship == PEER) && (broadcast == 1))
-					findPath(G, PEER, n, aux->id, id);
-				else if((aux->relationship == PROVIDER) && (broadcast == 1))
-					findPath(G, CUSTOMER, n, aux->id, id);	
+		
+		}else if((G->list[id].P.type == relationship) && (G->list[id].P.hops > n)){
+			G->list[id].P.hops = n;
+			n++;
+			
+			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
+				if(aux->relationship == CUSTOMER)
+					findPath(G, PROVIDER, n, aux->id, id);	
+		}
 	}
 	return;
 }
@@ -263,6 +200,7 @@ Graph readGraph(char * filename){
 		G->list[i].P.prev_id = -1;
 		G->list[i].P.type = NO_ROUTE;
 	}
+	for(i = 0; i < HOPSIZE; i++) G->N_HOPS[i] = 0;
 	
 	// Node addition from file input
 	while(fgets(linha, BUFFSIZE, fp) != NULL){
@@ -313,6 +251,21 @@ void memoryReset(Graph G){
 	long i;
 	for(i = 0; i < NETSIZE; i++){
 		if(G->list[i].next != NULL){
+			switch(G->list[i].P.type){
+				case(CUSToMER):
+					N_CUSTOMER++;
+					break;
+				case(PEER):
+					N_PEER++;
+					break;
+				case(PROVIDER):
+					N_PROVIDER++;
+					break;
+				case(DESTINATION): break;
+				default: N_UNUSABLE++;
+			}
+			G->N_HOPS[G->list[i].P.hops]++; 
+			
 			G->list[i].P.hops = -1;
 			G->list[i].P.prev_id = -1;
 			G->list[i].P.type = NO_ROUTE;
@@ -325,7 +278,6 @@ void memoryReset(Graph G){
 */
 void printResult(Graph G, long destination){
 	long i;
-	N_UNUSABLE = (G->V - 1) - (N_PROVIDER + N_PEER + N_CUSTOMER);
 	printf("Node\t\tPath (Type, Hops)\n");
 	for(i = 0; i < NETSIZE; i++)
 		if(G->list[i].next != NULL)
@@ -358,13 +310,18 @@ void printResult(Graph G, long destination){
  * Function used to print statistics from a given graph
 */
 void printStat(Graph G){
-	N_UNUSABLE = (G->V * (G->V - 1)) - (N_PROVIDER + N_PEER + N_CUSTOMER);
+	int i;
+	long total = (G->V * (G->V - 1));
+	
 	printf("In %li paths there are:\n", (G->V * (G->V - 1)));
-	printf("Provider Paths:\t %-5li [%-3.1f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/(G->V * (G->V - 1)));
-	printf("Peer Paths:\t %-5li [%-3.1f\%%]\n", N_PEER, (N_PEER * 100.0)/(G->V * (G->V - 1)));
-	printf("Customer Paths:\t %-5li [%-3.1f\%%]\n", N_CUSTOMER, (N_CUSTOMER * 100.0)/(G->V * (G->V - 1)));
-	printf("Unusable Paths:\t %-5li [%-3.1f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/(G->V * (G->V - 1)));
+	printf("Provider Paths:\t %-5li [%-3.1f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/total);
+	printf("Peer Paths:\t %-5li [%-3.1f\%%]\n", N_PEER, (N_PEER * 100.0)/total);
+	printf("Customer Paths:\t %-5li [%-3.1f\%%]\n", N_CUSTOMER, (N_CUSTOMER * 100.0)/total);
+	printf("Unusable Paths:\t %-5li [%-3.1f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/(total);
 	printf("--------------------------------------------\n");
+	for(i = 0; i < HOPSIZE; i++)
+		if(G->N_HOPS[i] != 0)
+			printf("There are %-5li [%-3.1f\%%] nodes distanced by %d hops\n", G->N_HOPS[i], (G->N_HOPS[i] * 100)/total, i);
 }
 
 // ----------------------------------------------- Main --------------------------------------------
@@ -396,6 +353,7 @@ int main(int argc, char **argv){
 			exit(0);
 		}
 		findPath(G, DESTINATION, 0, destination, -1);
+		memoryReset(G);
 		printResult(G, destination);
 	// Otherwise, the algorithm is run for every possible destination,
 	// and the network statistics are generated (and printed)
