@@ -123,15 +123,14 @@ void graphInsertE(Graph G, Edge e){
 */
 void findPath(Graph G, int relationship, int n, long id, long prev_id){
 	link aux;
-	int broadcast = 0;
 	
 	// If the same neighbor is sending new information, it's because its
 	// information is better now. 
-	if(G->list[id].P.prev_id == prev_id) G->list[id].P.hops = n;
+	if(G->list[id].P.prev_id == prev_id && prev_id != -1) G->list[id].P.hops = n;
 	
 	if((relationship == DESTINATION) || (relationship == CUSTOMER)){
 		G->list[id].P.type = relationship;
-		if((G->list[id].P.hops == -1) || (G->list[id].P.hops < n)){ 
+		if((G->list[id].P.hops == -1) || (G->list[id].P.hops > n)){ 
 			G->list[id].P.hops = n;
 			n++;
 			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
@@ -170,7 +169,6 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 					findPath(G, PROVIDER, n, aux->id, id);	
 		}
 	}
-	return;
 }
 
 /*
@@ -252,7 +250,7 @@ void memoryReset(Graph G){
 	for(i = 0; i < NETSIZE; i++){
 		if(G->list[i].next != NULL){
 			switch(G->list[i].P.type){
-				case(CUSToMER):
+				case(CUSTOMER):
 					N_CUSTOMER++;
 					break;
 				case(PEER):
@@ -287,15 +285,19 @@ void printResult(Graph G, long destination){
 					break;
 				case(CUSTOMER):
 					printf("%-5li\t\t(CUSTOMER,    %2d)\n", i, G->list[i].P.hops);
+					N_CUSTOMER++;
 					break;
 				case(PEER):
 					printf("%-5li\t\t(PEER,        %2d)\n", i, G->list[i].P.hops);
+					N_PEER++;
 					break;
 				case(PROVIDER):
 					printf("%-5li\t\t(PROVIDER,    %2d)\n", i, G->list[i].P.hops);
+					N_PROVIDER++;
 					break;
 				case(NO_ROUTE):
 					printf("%-5li\t\t(UNUSABLE,    %2d)\n", i, G->list[i].P.hops);
+					N_UNUSABLE++;
 					break;
 				default:
 					printf("Something wrong happened with the path type resolution\n");
@@ -317,11 +319,11 @@ void printStat(Graph G){
 	printf("Provider Paths:\t %-5li [%-3.1f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/total);
 	printf("Peer Paths:\t %-5li [%-3.1f\%%]\n", N_PEER, (N_PEER * 100.0)/total);
 	printf("Customer Paths:\t %-5li [%-3.1f\%%]\n", N_CUSTOMER, (N_CUSTOMER * 100.0)/total);
-	printf("Unusable Paths:\t %-5li [%-3.1f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/(total);
+	printf("Unusable Paths:\t %-5li [%-3.1f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/total);
 	printf("--------------------------------------------\n");
 	for(i = 0; i < HOPSIZE; i++)
 		if(G->N_HOPS[i] != 0)
-			printf("There are %-5li [%-3.1f\%%] nodes distanced by %d hops\n", G->N_HOPS[i], (G->N_HOPS[i] * 100)/total, i);
+			printf("There are %-5li [%-3.1f\%%] nodes distanced by %d hops\n", G->N_HOPS[i], (G->N_HOPS[i] * 100.0)/total, i);
 }
 
 // ----------------------------------------------- Main --------------------------------------------
@@ -353,7 +355,6 @@ int main(int argc, char **argv){
 			exit(0);
 		}
 		findPath(G, DESTINATION, 0, destination, -1);
-		memoryReset(G);
 		printResult(G, destination);
 	// Otherwise, the algorithm is run for every possible destination,
 	// and the network statistics are generated (and printed)
