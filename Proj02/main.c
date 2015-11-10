@@ -246,7 +246,9 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 				else if((aux->relationship == PEER) && (broadcast == 1))
 					findPath(G, PEER, n, aux->id, id);
 				else if((aux->relationship == PROVIDER) && (broadcast == 1))
-					findPath(G, CUSTOMER, n, aux->id, id);	
+					findPath(G, CUSTOMER, n, aux->id, id);
+				else
+					printf("There was some kind of error\n");
 	}
 	
 }
