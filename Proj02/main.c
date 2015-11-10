@@ -243,10 +243,8 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 					findPath(G, PEER, n, aux->id, id);
 				else if((aux->relationship == PROVIDER) && (broadcast == 1))
 					findPath(G, CUSTOMER, n, aux->id, id);
-				else if(aux->relationship < 1 || aux->relationship > 3){
+				else if(aux->relationship < 1 || aux->relationship > 3)
 					printf("%li -> %li: Relationship: %d\n", id, aux->id, aux->relationship);
-					return;
-				}
 			}
 	}
 
