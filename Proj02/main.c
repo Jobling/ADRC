@@ -14,7 +14,7 @@ because of the usage.
 #define DESTINATION 0
 
 #define BUFFSIZE 64
-#define HOPSIZE 50
+#define HOPSIZE 100
 #define NETSIZE 65536
 
 long N_PROVIDER = 0;
