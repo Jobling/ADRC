@@ -223,34 +223,33 @@ int setPath(path * P, int type, int hops){
  * a path to a given destination node
 */
 void findPath(Graph G, int relationship, int n, long id, long prev_id){
-	link aux;
+	link aux = NULL;
 	int broadcast = 0;
 
 	// If the same neighbor is sending new information, it's because its
 	// information is better now. 
 	if(G->list[id].P.prev_id == prev_id && prev_id != -1) G->list[id].P.hops = n;
-	
-	broadcast = setPath(&(G->list[id].P), relationship, n);
-	
-	if (broadcast == -1) 
+
+	if ((broadcast = setPath(&(G->list[id].P), relationship, n)) == -1){
 		return;
-	else{
+	}else{
 		G->list[id].P.prev_id = prev_id;
 		n++;
 		for(aux = G->list[id].next; aux != NULL; aux = aux->next)
-			if(aux->id == prev_id)
-				continue;
-			else
+			if(aux->id != prev_id){
 				if(aux->relationship == CUSTOMER)
 					findPath(G, PROVIDER, n, aux->id, id);
 				else if((aux->relationship == PEER) && (broadcast == 1))
 					findPath(G, PEER, n, aux->id, id);
 				else if((aux->relationship == PROVIDER) && (broadcast == 1))
 					findPath(G, CUSTOMER, n, aux->id, id);
-				else
-					printf("There was some kind of error\n");
+				else if(aux->relationship < 1 || aux->relationship > 3){
+					printf("%li -> %li: Relationship: %d\n", id, aux->id, aux->relationship);
+					return;
+				}
+			}
 	}
-	
+
 }
 
 /*
@@ -281,7 +280,7 @@ Graph readGraph(char * filename){
 		G->list[i].P.type = NO_ROUTE;
 	}
 	for(i = 0; i < HOPSIZE; i++) G->N_HOPS[i] = 0;
-	
+
 	// Node addition from file input
 	while(fgets(linha, BUFFSIZE, fp) != NULL){
 		/*
@@ -345,7 +344,7 @@ void memoryReset(Graph G){
 				default: N_UNUSABLE++;
 			}
 			if(G->list[i].P.type != DESTINATION) G->N_HOPS[G->list[i].P.hops]++; 
-			
+
 			G->list[i].P.hops = -1;
 			G->list[i].P.prev_id = -1;
 			G->list[i].P.type = NO_ROUTE;
@@ -385,7 +384,8 @@ void printResult(Graph G, long destination){
 					printf("Something wrong happened with the path type resolution\n");
 					break;
 			}
-	printf("---------------\n");
+	printf("-------------------------------------------------------\n");
+
 	printf("Found %li Provider paths, %li Peer paths, %li Customer paths and %li Unusable Paths to %li\n", 
 					N_PROVIDER, N_PEER, N_CUSTOMER, N_UNUSABLE, destination);
 }
@@ -397,19 +397,22 @@ void printStat(Graph G){
 	int i;
 	long total = (G->V * (G->V - 1));
 	long paths = 0;
-	
+
 	printf("In %li paths there are:\n", (G->V * (G->V - 1)));
 	printf("Provider Paths:\t %-5li [%-3.1f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/total);
 	printf("Peer Paths:\t %-5li [%-3.1f\%%]\n", N_PEER, (N_PEER * 100.0)/total);
 	printf("Customer Paths:\t %-5li [%-3.1f\%%]\n", N_CUSTOMER, (N_CUSTOMER * 100.0)/total);
 	printf("Unusable Paths:\t %-5li [%-3.1f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/total);
-	printf("--------------------------------------------\n");
+	printf("-------------------------------------------------------\n");
 	for(i = 0; i < HOPSIZE; i++)
 		if(G->N_HOPS[i] != 0){
 			printf("There are %-5li [%-3.1f\%%] nodes distanced by %d hops\n", G->N_HOPS[i], (G->N_HOPS[i] * 100.0)/total, i);
 			paths += G->N_HOPS[i];
 		}
 		if(paths != total) printf("There are %-5li [%-3.1f\%%] nodes distanced by 'infinite' hops\n", total - paths, ((total - paths) * 100.0)/total);
+
+	printf("-------------------------------------------------------\n");
+
 }
 
 // ----------------------------------------------- Main --------------------------------------------
@@ -427,12 +430,12 @@ int main(int argc, char **argv){
 	sscanf(argv[1], "%s", filename);
 
 	// Reading Graph
-	printf("Reading file\n");
 	G = readGraph(filename);
-	
-	printf("The file %s was loaded successfully to the Graph\n", filename);
+
+	printf("-------------------------------------------------------\n");
 	printf("There are %li nodes and %li edges!\n", G->V, G->E);
-	
+	printf("-------------------------------------------------------\n");
+
 	// In case there is a second argument, it is the target destination
 	if(argc == 3){
 		if(sscanf(argv[2], "%li", &destination) != 1){
@@ -453,7 +456,7 @@ int main(int argc, char **argv){
 		}
 		printStat(G);
 	}
-	
+
 	// Free Memory allocated previously
 	memoryCheck(G);
 	exit(0);
