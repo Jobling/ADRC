@@ -342,7 +342,7 @@ void memoryReset(Graph G){
 				case(DESTINATION): break;
 				default: N_UNUSABLE++;
 			}
-			G->N_HOPS[G->list[i].P.hops]++; 
+			if(G->list[i].P.type != DESTINATION) G->N_HOPS[G->list[i].P.hops]++; 
 			
 			G->list[i].P.hops = -1;
 			G->list[i].P.prev_id = -1;
@@ -394,6 +394,7 @@ void printResult(Graph G, long destination){
 void printStat(Graph G){
 	int i;
 	long total = (G->V * (G->V - 1));
+	long paths = 0;
 	
 	printf("In %li paths there are:\n", (G->V * (G->V - 1)));
 	printf("Provider Paths:\t %-5li [%-3.1f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/total);
@@ -402,8 +403,11 @@ void printStat(Graph G){
 	printf("Unusable Paths:\t %-5li [%-3.1f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/total);
 	printf("--------------------------------------------\n");
 	for(i = 0; i < HOPSIZE; i++)
-		if(G->N_HOPS[i] != 0)
+		if(G->N_HOPS[i] != 0){
 			printf("There are %-5li [%-3.1f\%%] nodes distanced by %d hops\n", G->N_HOPS[i], (G->N_HOPS[i] * 100.0)/total, i);
+			paths += G->N_HOPS[i];
+		}
+		if(paths != total) printf("There are %-5li [%-3.1f\%%] nodes distanced by 'infinite' hops\n", total - paths, ((total - paths) * 100.0)/total);
 }
 
 // ----------------------------------------------- Main --------------------------------------------
