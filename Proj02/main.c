@@ -231,7 +231,9 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 				else if((aux->relationship == PEER) && (broadcast == 1))
 					findPath(G, PEER, n, aux->id, id);
 				else if((aux->relationship == PROVIDER) && (broadcast == 1))
-					findPath(G, CUSTOMER, n, aux->id, id);	
+					findPath(G, CUSTOMER, n, aux->id, id);
+				else if(aux->relationship < 1 || aux->relationship > 3)
+					printf("%li -> %li: %d\n", id, aux->id, aux->relationship);
 	}
 	return;
 }
@@ -349,7 +351,7 @@ void printResult(Graph G, long destination){
 					printf("Something wrong happened with the path type resolution\n");
 					break;
 			}
-	printf("---------------\n");
+	printf("--------------------------------------------\n");
 	printf("Found %li Provider paths, %li Peer paths, %li Customer paths and %li Unusable Paths to %li\n", 
 					N_PROVIDER, N_PEER, N_CUSTOMER, N_UNUSABLE, destination);
 }
@@ -382,12 +384,12 @@ int main(int argc, char **argv){
 	sscanf(argv[1], "%s", filename);
 
 	// Reading Graph
-	printf("Reading file\n");
 	G = readGraph(filename);
 	
-	printf("The file %s was loaded successfully to the Graph\n", filename);
+	printf("--------------------------------------------\n");
 	printf("There are %li nodes and %li edges!\n", G->V, G->E);
-	
+	printf("--------------------------------------------\n");
+
 	// In case there is a second argument, it is the target destination
 	if(argc == 3){
 		if(sscanf(argv[2], "%li", &destination) != 1){
