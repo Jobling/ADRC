@@ -116,6 +116,107 @@ void graphInsertE(Graph G, Edge e){
 	free(e);
 	return;
 }
+
+/*
+Function to evaluate current node Path and set a flag for subsequent calls of findPath
+-1 -> Older path is better
+ 1 -> New path is better - Broadcast
+ 0 -> New path is better - Send to customers only 
+*/
+int setPath(path * P, int type, int hops){
+	// This first switch is meant to know from what type of node is the information coming
+	switch(type){
+		// This case only happens for the destination, and it's immediatly taken as the best case
+		// This result is broadcasted, hence return 1
+		case(DESTINATION):
+			P->type = type;
+			P->hops = hops;
+			return 1;
+			
+		// This case, excluding DESTINATION, is the best, so its path type is always taken.
+		// Afterwards, if the previous stored path was also a CUSTOMER path, it's needed to
+		// check for the best number of hops.
+		case(CUSTOMER):
+			switch(P->type){
+				// If the node has the same type of path, it must test for number of hops
+				// If the path is better, it should broadcast it
+				case(CUSTOMER):
+					if(hops < P->hops){
+						P->hops = hops;
+						return 1;
+					}
+
+				// If the node is the DESTINATION or its current path is better, return -1
+				case(DESTINATION):
+					return -1;
+
+				// Only nodes with current NO_ROUTE, PROVIDER and PEER paths get here	
+				default:
+					P->type = type;
+					P->hops = hops;
+					return 1;
+			}
+			
+		// For this case, the same happens as with the previous case, but on a worst case: PEER.
+		// If the previous stored case is better than PEER, there is no use in broadcasting the information
+		// The only possible return types for this case are -1: path is worse or 0: path is better, send to 
+		// customers only
+		case(PEER):
+			switch(P->type){		
+				// If the node has the same type of path, it must test for number of hops
+				// If the path is better, it should only send the path to CUSTOMERS (hence return 0)
+				case(PEER):
+					if(hops < P->hops){
+						P->hops = hops;
+						return 0;
+					}
+
+				// If the path type is already better, 
+				// or same type and worse number of hops then do nothing (hence return -1)
+				case(CUSTOMER):
+				case(DESTINATION):
+					return -1;
+				
+				// Only nodes with current NO_ROUTE and PROVIDER paths get here	
+				default:
+					P->type = type;
+					P->hops = hops;
+					return 0;	
+			}
+			
+		// Really similar to the PEER case. Before counting the number of different paths, this used to be the same
+		// if clause. Now it's not as easy to do so.	
+		case(PROVIDER):
+			switch(P->type){
+				// If the node has the same type of path, it must test for number of hops
+				// If the path is better, it should only send the path to CUSTOMERS (hence return 0)
+				case(PROVIDER):
+					if(hops < P->hops){
+						P->hops = hops;
+						return 0;					
+					}
+
+				// If the path type is already better, 
+				// or same type and worse number of hops then do nothing (hence return -1)	
+				case(PEER):
+				case(CUSTOMER):
+				case(DESTINATION):
+					return -1;
+
+				// Only nodes with current NO_ROUTE get here
+				default:
+					P->type = type;
+					P->hops = hops;
+					return 0;
+			}
+
+	}
+	// No case should return here. If it returns, prints out a warning, and it doesn't broadcast, so that 
+	// the error can not be propagated
+	printf("An exception as occured with Path: type-%d hops-%d\n", P->type, P->hops);
+	printf("and type-%d hops-%d\n", type, hops);
+	return -1;
+}
  
 /*
  * Recursive algorithm that finds the type and number of hops for
@@ -123,52 +224,31 @@ void graphInsertE(Graph G, Edge e){
 */
 void findPath(Graph G, int relationship, int n, long id, long prev_id){
 	link aux;
-	
+	int broadcast = 0;
+
 	// If the same neighbor is sending new information, it's because its
 	// information is better now. 
 	if(G->list[id].P.prev_id == prev_id && prev_id != -1) G->list[id].P.hops = n;
 	
-	if((relationship == DESTINATION) || (relationship == CUSTOMER)){
-		G->list[id].P.type = relationship;
-		if((G->list[id].P.hops == -1) || (G->list[id].P.hops > n)){ 
-			G->list[id].P.hops = n;
-			n++;
-			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
-				if(aux->id != prev_id)
-					switch(aux->relationship){
-						case(CUSTOMER):
-							findPath(G, PROVIDER, n, aux->id, id);
-							break;
-						case(PEER):
-							findPath(G, PEER, n, aux->id, id);
-							break;
-						case(PROVIDER):
-							findPath(G, CUSTOMER, n, aux->id, id);
-							break;
-						default:
-							printf("Some kind of error occurred with the relationships while finding path type [recursive]\n");
-							break;
-					}
-		}
-	}else{
-		if(G->list[id].P.type > relationship){ 
-			G->list[id].P.type = relationship;
-			G->list[id].P.hops = n;
-			n++;
-			
-			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
+	broadcast = setPath(&(G->list[id].P), relationship, n);
+	
+	if (broadcast == -1) 
+		return;
+	else{
+		G->list[id].P.prev_id = prev_id;
+		n++;
+		for(aux = G->list[id].next; aux != NULL; aux = aux->next)
+			if(aux->id == prev_id)
+				continue;
+			else
 				if(aux->relationship == CUSTOMER)
 					findPath(G, PROVIDER, n, aux->id, id);
-		
-		}else if((G->list[id].P.type == relationship) && (G->list[id].P.hops > n)){
-			G->list[id].P.hops = n;
-			n++;
-			
-			for(aux = G->list[id].next; aux != NULL; aux = aux->next)
-				if(aux->relationship == CUSTOMER)
-					findPath(G, PROVIDER, n, aux->id, id);	
-		}
+				else if((aux->relationship == PEER) && (broadcast == 1))
+					findPath(G, PEER, n, aux->id, id);
+				else if((aux->relationship == PROVIDER) && (broadcast == 1))
+					findPath(G, CUSTOMER, n, aux->id, id);	
 	}
+	
 }
 
 /*
