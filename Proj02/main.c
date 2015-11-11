@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // ------------------------------------- MACROS and GLOBAL VARIABLES -------------------------------
 /*
@@ -397,17 +398,17 @@ void printStat(Graph G){
 	long paths = 0;
 
 	printf("In %li paths there are:\n", (G->V * (G->V - 1)));
-	printf("Provider Paths:\t %-5li [%-3.1f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/total);
-	printf("Peer Paths:\t %-5li [%-3.1f\%%]\n", N_PEER, (N_PEER * 100.0)/total);
-	printf("Customer Paths:\t %-5li [%-3.1f\%%]\n", N_CUSTOMER, (N_CUSTOMER * 100.0)/total);
-	printf("Unusable Paths:\t %-5li [%-3.1f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/total);
+	printf("Provider Paths:\t %-10li [%-3.2f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/total);
+	printf("Peer Paths:\t %-10li [%-3.2f\%%]\n", N_PEER, (N_PEER * 100.0)/total);
+	printf("Customer Paths:\t %-10li [%-3.2f\%%]\n", N_CUSTOMER, (N_CUSTOMER * 100.0)/total);
+	printf("Unusable Paths:\t %-10li [%-3.2f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/total);
 	printf("-------------------------------------------------------\n");
 	for(i = 0; i < HOPSIZE; i++)
 		if(G->N_HOPS[i] != 0){
-			printf("There are %-5li [%-3.1f\%%] nodes distanced by %d hops\n", G->N_HOPS[i], (G->N_HOPS[i] * 100.0)/total, i);
+			printf("There are %-10li [%-3.4f\%%] nodes distanced by %d hops\n", G->N_HOPS[i], (G->N_HOPS[i] * 100.0)/total, i);
 			paths += G->N_HOPS[i];
 		}
-		if(paths != total) printf("There are %-5li [%-3.1f\%%] nodes distanced by 'infinite' hops\n", total - paths, ((total - paths) * 100.0)/total);
+		if(paths != total) printf("There are %-10li [%-3.4f\%%] nodes distanced by 'infinite' hops\n", total - paths, ((total - paths) * 100.0)/total);
 
 	printf("-------------------------------------------------------\n");
 
@@ -419,6 +420,8 @@ int main(int argc, char **argv){
 	char filename[BUFFSIZE];
 	long destination;
 	long i;
+	clock_t start, end;
+	int elapsed_time;
 
 	// Obtaining filename from arguments
 	if(argc < 2 || argc > 3){
@@ -446,13 +449,17 @@ int main(int argc, char **argv){
 	// Otherwise, the algorithm is run for every possible destination,
 	// and the network statistics are generated (and printed)
 	}else{
+		start = clock();
 		for(i = 0; i < NETSIZE; i++){
 			if(G->list[i].next != NULL){
 				findPath(G, DESTINATION, 0, i, -1);
 				memoryReset(G);
 			}
 		}
+		end = clock();
 		printStat(G);
+		elapsed_time = (double)(end - start)/CLOCKS_PER_SEC;
+		printf("Elapsed time: %d minutes and %d seconds!\n",(int)elapsed_time/60,(int)elapsed_time%60); 
 	}
 
 	// Free Memory allocated previously

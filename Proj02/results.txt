@@ -1,2 +1,79 @@
-Starting time: 20:22:46
+Starting time: 22:41:23
 
+-------------------------------------------------------
+There are 43974 nodes and 246490 edges!
+-------------------------------------------------------
+In 1933668702 paths there are:
+Provider Paths:	 1704470972 [88.15%]
+Peer Paths:	 217369490  [11.24%]
+Customer Paths:	 11828240   [0.61%]
+Unusable Paths:	 0          [0.00%]
+-------------------------------------------------------
+There are 211648     [0.0109%] nodes distanced by 1 hops
+There are 58207497   [3.0102%] nodes distanced by 2 hops
+There are 332602684  [17.2006%] nodes distanced by 3 hops
+There are 439536520  [22.7307%] nodes distanced by 4 hops
+There are 264959463  [13.7024%] nodes distanced by 5 hops
+There are 149418409  [7.7272%] nodes distanced by 6 hops
+There are 92844857   [4.8015%] nodes distanced by 7 hops
+There are 66591832   [3.4438%] nodes distanced by 8 hops
+There are 54571856   [2.8222%] nodes distanced by 9 hops
+There are 48148284   [2.4900%] nodes distanced by 10 hops
+There are 41491256   [2.1457%] nodes distanced by 11 hops
+There are 36861701   [1.9063%] nodes distanced by 12 hops
+There are 31639834   [1.6363%] nodes distanced by 13 hops
+There are 29761149   [1.5391%] nodes distanced by 14 hops
+There are 29245114   [1.5124%] nodes distanced by 15 hops
+There are 28570287   [1.4775%] nodes distanced by 16 hops
+There are 24867359   [1.2860%] nodes distanced by 17 hops
+There are 21585458   [1.1163%] nodes distanced by 18 hops
+There are 18141273   [0.9382%] nodes distanced by 19 hops
+There are 17105437   [0.8846%] nodes distanced by 20 hops
+There are 15683192   [0.8111%] nodes distanced by 21 hops
+There are 15158794   [0.7839%] nodes distanced by 22 hops
+There are 13090731   [0.6770%] nodes distanced by 23 hops
+There are 12167430   [0.6292%] nodes distanced by 24 hops
+There are 10302836   [0.5328%] nodes distanced by 25 hops
+There are 9171378    [0.4743%] nodes distanced by 26 hops
+There are 7413644    [0.3834%] nodes distanced by 27 hops
+There are 7085883    [0.3664%] nodes distanced by 28 hops
+There are 6331496    [0.3274%] nodes distanced by 29 hops
+There are 5150459    [0.2664%] nodes distanced by 30 hops
+There are 4767244    [0.2465%] nodes distanced by 31 hops
+There are 4373417    [0.2262%] nodes distanced by 32 hops
+There are 4073104    [0.2106%] nodes distanced by 33 hops
+There are 3949047    [0.2042%] nodes distanced by 34 hops
+There are 3831084    [0.1981%] nodes distanced by 35 hops
+There are 3133993    [0.1621%] nodes distanced by 36 hops
+There are 2471897    [0.1278%] nodes distanced by 37 hops
+There are 2154269    [0.1114%] nodes distanced by 38 hops
+There are 2394799    [0.1238%] nodes distanced by 39 hops
+There are 3061495    [0.1583%] nodes distanced by 40 hops
+There are 3034324    [0.1569%] nodes distanced by 41 hops
+There are 1827884    [0.0945%] nodes distanced by 42 hops
+There are 1388943    [0.0718%] nodes distanced by 43 hops
+There are 1126681    [0.0583%] nodes distanced by 44 hops
+There are 962065     [0.0498%] nodes distanced by 45 hops
+There are 938197     [0.0485%] nodes distanced by 46 hops
+There are 590061     [0.0305%] nodes distanced by 47 hops
+There are 588720     [0.0304%] nodes distanced by 48 hops
+There are 394394     [0.0204%] nodes distanced by 49 hops
+There are 215969     [0.0112%] nodes distanced by 50 hops
+There are 177306     [0.0092%] nodes distanced by 51 hops
+There are 95253      [0.0049%] nodes distanced by 52 hops
+There are 62068      [0.0032%] nodes distanced by 53 hops
+There are 45596      [0.0024%] nodes distanced by 54 hops
+There are 31393      [0.0016%] nodes distanced by 55 hops
+There are 24387      [0.0013%] nodes distanced by 56 hops
+There are 18565      [0.0010%] nodes distanced by 57 hops
+There are 8207       [0.0004%] nodes distanced by 58 hops
+There are 5569       [0.0003%] nodes distanced by 59 hops
+There are 3486       [0.0002%] nodes distanced by 60 hops
+There are 1114       [0.0001%] nodes distanced by 61 hops
+There are 307        [0.0000%] nodes distanced by 62 hops
+There are 84         [0.0000%] nodes distanced by 63 hops
+There are 19         [0.0000%] nodes distanced by 64 hops
+-------------------------------------------------------
+Elapsed time: 22 minutes and 53 seconds!
+
+Finish time: 23:04:21
