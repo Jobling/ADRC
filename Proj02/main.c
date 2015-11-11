@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // ------------------------------------- MACROS and GLOBAL VARIABLES -------------------------------
 /*
@@ -14,6 +15,7 @@ because of the usage.
 #define DESTINATION 0
 
 #define BUFFSIZE 64
+#define HOPSIZE 100
 #define NETSIZE 65536
 
 long N_PROVIDER = 0;
@@ -73,6 +75,7 @@ typedef struct AS{
 typedef struct graph{
 	long V;
 	long E;
+	long N_HOPS[HOPSIZE];
 	AS list[NETSIZE];
 } * Graph;
 
@@ -125,6 +128,7 @@ int setPath(path * P, int type, int hops){
 	// This first switch is meant to know from what type of node is the information coming
 	switch(type){
 		// This case only happens for the destination, and it's immediatly taken as the best case
+		// This result is broadcasted, hence return 1
 		case(DESTINATION):
 			P->type = type;
 			P->hops = hops;
@@ -135,69 +139,78 @@ int setPath(path * P, int type, int hops){
 		// check for the best number of hops.
 		case(CUSTOMER):
 			switch(P->type){
-				case(PROVIDER):
-					N_PROVIDER--;
-					break;
-				case(PEER):
-					N_PEER--;
-					break;
+				// If the node has the same type of path, it must test for number of hops
+				// If the path is better, it should broadcast it
 				case(CUSTOMER):
 					if(hops < P->hops){
 						P->hops = hops;
 						return 1;
 					}
+
+				// If the node is the DESTINATION or its current path is better, return -1
 				case(DESTINATION):
 					return -1;
+
+				// Only nodes with current NO_ROUTE, PROVIDER and PEER paths get here	
+				default:
+					P->type = type;
+					P->hops = hops;
+					return 1;
 			}
-			// Only nodes with current NO_ROUTE, PROVIDER and PEER paths get here
-			P->type = type;
-			P->hops = hops;
-			N_CUSTOMER++;
-			return 1;
 			
 		// For this case, the same happens as with the previous case, but on a worst case: PEER.
 		// If the previous stored case is better than PEER, there is no use in broadcasting the information
 		// The only possible return types for this case are -1: path is worse or 0: path is better, send to 
 		// customers only
 		case(PEER):
-			switch(P->type){
-				case(PROVIDER):
-					N_PROVIDER--;
-					break;
+			switch(P->type){		
+				// If the node has the same type of path, it must test for number of hops
+				// If the path is better, it should only send the path to CUSTOMERS (hence return 0)
 				case(PEER):
 					if(hops < P->hops){
 						P->hops = hops;
 						return 0;
 					}
+
+				// If the path type is already better, 
+				// or same type and worse number of hops then do nothing (hence return -1)
 				case(CUSTOMER):
 				case(DESTINATION):
 					return -1;
+				
+				// Only nodes with current NO_ROUTE and PROVIDER paths get here	
+				default:
+					P->type = type;
+					P->hops = hops;
+					return 0;	
 			}
-			// Only nodes with current NO_ROUTE and PROVIDER get here
-			P->type = type;
-			P->hops = hops;
-			N_PEER++;
-			return 0;
 			
 		// Really similar to the PEER case. Before counting the number of different paths, this used to be the same
 		// if clause. Now it's not as easy to do so.	
 		case(PROVIDER):
 			switch(P->type){
+				// If the node has the same type of path, it must test for number of hops
+				// If the path is better, it should only send the path to CUSTOMERS (hence return 0)
 				case(PROVIDER):
 					if(hops < P->hops){
 						P->hops = hops;
 						return 0;					
-					}else return -1;
+					}
+
+				// If the path type is already better, 
+				// or same type and worse number of hops then do nothing (hence return -1)	
 				case(PEER):
 				case(CUSTOMER):
 				case(DESTINATION):
 					return -1;
+
+				// Only nodes with current NO_ROUTE get here
+				default:
+					P->type = type;
+					P->hops = hops;
+					return 0;
 			}
-			// Only nodes with current NO_ROUTE get here
-			P->type = type;
-			P->hops = hops;
-			N_PROVIDER++;
-			return 0;
+
 	}
 	// No case should return here. If it returns, prints out a warning, and it doesn't broadcast, so that 
 	// the error can not be propagated
@@ -211,11 +224,12 @@ int setPath(path * P, int type, int hops){
  * a path to a given destination node
 */
 void findPath(Graph G, int relationship, int n, long id, long prev_id){
-	link aux;
+	link aux = NULL;
 	int broadcast = 0;
-	
+
 	// If the same neighbor is sending new information, it's because its
 	// information is better now. 
+<<<<<<< HEAD
 	if(G->list[id].P.prev_id == prev_id){
 		G->list[id].P.type = relationship;
 		G->list[id].P.hops = n;
@@ -226,12 +240,17 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 	if (broadcast == -1) 
 		return;
 	else{
+=======
+	if(G->list[id].P.prev_id == prev_id && prev_id != -1) G->list[id].P.hops = n;
+
+	if ((broadcast = setPath(&(G->list[id].P), relationship, n)) == -1){
+		return;
+	}else{
+>>>>>>> refs/remotes/origin/HopStat
 		G->list[id].P.prev_id = prev_id;
 		n++;
 		for(aux = G->list[id].next; aux != NULL; aux = aux->next)
-			if(aux->id == prev_id)
-				continue;
-			else
+			if(aux->id != prev_id){
 				if(aux->relationship == CUSTOMER)
 					findPath(G, PROVIDER, n, aux->id, id);
 				else if((aux->relationship == PEER) && (broadcast == 1))
@@ -239,9 +258,16 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 				else if((aux->relationship == PROVIDER) && (broadcast == 1))
 					findPath(G, CUSTOMER, n, aux->id, id);
 				else if(aux->relationship < 1 || aux->relationship > 3)
+<<<<<<< HEAD
 					printf("%li -> %li: %d\n", id, aux->id, aux->relationship);
 	}
 	
+=======
+					printf("%li -> %li: Relationship: %d\n", id, aux->id, aux->relationship);
+			}
+	}
+
+>>>>>>> refs/remotes/origin/HopStat
 }
 
 /*
@@ -271,7 +297,8 @@ Graph readGraph(char * filename){
 		G->list[i].P.prev_id = -1;
 		G->list[i].P.type = NO_ROUTE;
 	}
-	
+	for(i = 0; i < HOPSIZE; i++) G->N_HOPS[i] = 0;
+
 	// Node addition from file input
 	while(fgets(linha, BUFFSIZE, fp) != NULL){
 		/*
@@ -321,6 +348,21 @@ void memoryReset(Graph G){
 	long i;
 	for(i = 0; i < NETSIZE; i++){
 		if(G->list[i].next != NULL){
+			switch(G->list[i].P.type){
+				case(CUSTOMER):
+					N_CUSTOMER++;
+					break;
+				case(PEER):
+					N_PEER++;
+					break;
+				case(PROVIDER):
+					N_PROVIDER++;
+					break;
+				case(DESTINATION): break;
+				default: N_UNUSABLE++;
+			}
+			if(G->list[i].P.type != DESTINATION) G->N_HOPS[G->list[i].P.hops]++; 
+
 			G->list[i].P.hops = -1;
 			G->list[i].P.prev_id = -1;
 			G->list[i].P.type = NO_ROUTE;
@@ -333,7 +375,6 @@ void memoryReset(Graph G){
 */
 void printResult(Graph G, long destination){
 	long i;
-	N_UNUSABLE = (G->V - 1) - (N_PROVIDER + N_PEER + N_CUSTOMER);
 	printf("Node\t\tPath (Type, Hops)\n");
 	for(i = 0; i < NETSIZE; i++)
 		if(G->list[i].next != NULL)
@@ -343,21 +384,30 @@ void printResult(Graph G, long destination){
 					break;
 				case(CUSTOMER):
 					printf("%-5li\t\t(CUSTOMER,    %2d)\n", i, G->list[i].P.hops);
+					N_CUSTOMER++;
 					break;
 				case(PEER):
 					printf("%-5li\t\t(PEER,        %2d)\n", i, G->list[i].P.hops);
+					N_PEER++;
 					break;
 				case(PROVIDER):
 					printf("%-5li\t\t(PROVIDER,    %2d)\n", i, G->list[i].P.hops);
+					N_PROVIDER++;
 					break;
 				case(NO_ROUTE):
 					printf("%-5li\t\t(UNUSABLE,    %2d)\n", i, G->list[i].P.hops);
+					N_UNUSABLE++;
 					break;
 				default:
 					printf("Something wrong happened with the path type resolution\n");
 					break;
 			}
+<<<<<<< HEAD
 	printf("--------------------------------------------\n");
+=======
+	printf("-------------------------------------------------------\n");
+
+>>>>>>> refs/remotes/origin/HopStat
 	printf("Found %li Provider paths, %li Peer paths, %li Customer paths and %li Unusable Paths to %li\n", 
 					N_PROVIDER, N_PEER, N_CUSTOMER, N_UNUSABLE, destination);
 }
@@ -366,13 +416,25 @@ void printResult(Graph G, long destination){
  * Function used to print statistics from a given graph
 */
 void printStat(Graph G){
-	N_UNUSABLE = (G->V * (G->V - 1)) - (N_PROVIDER + N_PEER + N_CUSTOMER);
+	int i;
+	long total = (G->V * (G->V - 1));
+	long paths = 0;
+
 	printf("In %li paths there are:\n", (G->V * (G->V - 1)));
-	printf("Provider Paths:\t %-5li [%-3.1f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/(G->V * (G->V - 1)));
-	printf("Peer Paths:\t %-5li [%-3.1f\%%]\n", N_PEER, (N_PEER * 100.0)/(G->V * (G->V - 1)));
-	printf("Customer Paths:\t %-5li [%-3.1f\%%]\n", N_CUSTOMER, (N_CUSTOMER * 100.0)/(G->V * (G->V - 1)));
-	printf("Unusable Paths:\t %-5li [%-3.1f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/(G->V * (G->V - 1)));
-	printf("--------------------------------------------\n");
+	printf("Provider Paths:\t %-10li [%-3.2f\%%]\n", N_PROVIDER, (N_PROVIDER * 100.0)/total);
+	printf("Peer Paths:\t %-10li [%-3.2f\%%]\n", N_PEER, (N_PEER * 100.0)/total);
+	printf("Customer Paths:\t %-10li [%-3.2f\%%]\n", N_CUSTOMER, (N_CUSTOMER * 100.0)/total);
+	printf("Unusable Paths:\t %-10li [%-3.2f\%%]\n", N_UNUSABLE, (N_UNUSABLE * 100.0)/total);
+	printf("-------------------------------------------------------\n");
+	for(i = 0; i < HOPSIZE; i++)
+		if(G->N_HOPS[i] != 0){
+			printf("There are %-10li [%-3.4f\%%] nodes distanced by %d hops\n", G->N_HOPS[i], (G->N_HOPS[i] * 100.0)/total, i);
+			paths += G->N_HOPS[i];
+		}
+		if(paths != total) printf("There are %-10li [%-3.4f\%%] nodes distanced by 'infinite' hops\n", total - paths, ((total - paths) * 100.0)/total);
+
+	printf("-------------------------------------------------------\n");
+
 }
 
 // ----------------------------------------------- Main --------------------------------------------
@@ -381,6 +443,8 @@ int main(int argc, char **argv){
 	char filename[BUFFSIZE];
 	long destination;
 	long i;
+	clock_t start, end;
+	int elapsed_time;
 
 	// Obtaining filename from arguments
 	if(argc < 2 || argc > 3){
@@ -391,10 +455,17 @@ int main(int argc, char **argv){
 
 	// Reading Graph
 	G = readGraph(filename);
+<<<<<<< HEAD
 	
 	printf("--------------------------------------------\n");
 	printf("There are %li nodes and %li edges!\n", G->V, G->E);
 	printf("--------------------------------------------\n");
+=======
+
+	printf("-------------------------------------------------------\n");
+	printf("There are %li nodes and %li edges!\n", G->V, G->E);
+	printf("-------------------------------------------------------\n");
+>>>>>>> refs/remotes/origin/HopStat
 
 	// In case there is a second argument, it is the target destination
 	if(argc == 3){
@@ -408,15 +479,19 @@ int main(int argc, char **argv){
 	// Otherwise, the algorithm is run for every possible destination,
 	// and the network statistics are generated (and printed)
 	}else{
+		start = clock();
 		for(i = 0; i < NETSIZE; i++){
 			if(G->list[i].next != NULL){
 				findPath(G, DESTINATION, 0, i, -1);
 				memoryReset(G);
 			}
 		}
+		end = clock();
 		printStat(G);
+		elapsed_time = (double)(end - start)/CLOCKS_PER_SEC;
+		printf("Elapsed time: %d minutes and %d seconds!\n",(int)elapsed_time/60,(int)elapsed_time%60); 
 	}
-	
+
 	// Free Memory allocated previously
 	memoryCheck(G);
 	exit(0);

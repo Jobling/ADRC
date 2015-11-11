@@ -1,0 +1,10 @@
+#!/bin/bash
+
+echo "Starting"
+echo "Starting time:" $(date -u +"%T") > results.txt
+echo >> results.txt
+./Graph $1 >> results.txt
+echo >> results.txt
+echo "Finish time:" $(date -u +"%T") >> results.txt
+
+echo "Done"
