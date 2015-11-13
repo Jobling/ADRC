@@ -229,24 +229,11 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 
 	// If the same neighbor is sending new information, it's because its
 	// information is better now. 
-<<<<<<< HEAD
-	if(G->list[id].P.prev_id == prev_id){
-		G->list[id].P.type = relationship;
-		G->list[id].P.hops = n;
-	}
-	// It's still needed to compute if this new information should be broadcasted
-	broadcast = setPath(&(G->list[id].P), relationship, n);
-	
-	if (broadcast == -1) 
-		return;
-	else{
-=======
 	if(G->list[id].P.prev_id == prev_id && prev_id != -1) G->list[id].P.hops = n;
 
 	if ((broadcast = setPath(&(G->list[id].P), relationship, n)) == -1){
 		return;
 	}else{
->>>>>>> refs/remotes/origin/HopStat
 		G->list[id].P.prev_id = prev_id;
 		n++;
 		for(aux = G->list[id].next; aux != NULL; aux = aux->next)
@@ -258,16 +245,9 @@ void findPath(Graph G, int relationship, int n, long id, long prev_id){
 				else if((aux->relationship == PROVIDER) && (broadcast == 1))
 					findPath(G, CUSTOMER, n, aux->id, id);
 				else if(aux->relationship < 1 || aux->relationship > 3)
-<<<<<<< HEAD
-					printf("%li -> %li: %d\n", id, aux->id, aux->relationship);
-	}
-	
-=======
 					printf("%li -> %li: Relationship: %d\n", id, aux->id, aux->relationship);
 			}
 	}
-
->>>>>>> refs/remotes/origin/HopStat
 }
 
 /*
@@ -402,12 +382,8 @@ void printResult(Graph G, long destination){
 					printf("Something wrong happened with the path type resolution\n");
 					break;
 			}
-<<<<<<< HEAD
-	printf("--------------------------------------------\n");
-=======
-	printf("-------------------------------------------------------\n");
 
->>>>>>> refs/remotes/origin/HopStat
+	printf("-------------------------------------------------------\n");
 	printf("Found %li Provider paths, %li Peer paths, %li Customer paths and %li Unusable Paths to %li\n", 
 					N_PROVIDER, N_PEER, N_CUSTOMER, N_UNUSABLE, destination);
 }
@@ -455,17 +431,10 @@ int main(int argc, char **argv){
 
 	// Reading Graph
 	G = readGraph(filename);
-<<<<<<< HEAD
-	
-	printf("--------------------------------------------\n");
-	printf("There are %li nodes and %li edges!\n", G->V, G->E);
-	printf("--------------------------------------------\n");
-=======
 
 	printf("-------------------------------------------------------\n");
 	printf("There are %li nodes and %li edges!\n", G->V, G->E);
 	printf("-------------------------------------------------------\n");
->>>>>>> refs/remotes/origin/HopStat
 
 	// In case there is a second argument, it is the target destination
 	if(argc == 3){
