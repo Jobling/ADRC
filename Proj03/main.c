@@ -50,7 +50,8 @@ typedef struct node{
 typedef struct graph{
 	int V;
 	int E;
-	link list[NETSIZE];
+	link in[NETSIZE];
+	link out[NETSIZE];
 } * Graph;
 
 // ----------------------------------------------- Functions ---------------------------------------
@@ -82,10 +83,12 @@ link newNode(long id, link next){
  * Insert a relationship into the graph
 */
 void graphInsertE(Graph G, Edge e){
-	if(G->list[e->tail].next == NULL)
-		G->V++;
-	G->list[e->tail].next = newNode(e->head, G->list[e->tail].next);
-	G->E++;
+	if(G->out[e->tail].next == NULL) G->V++;
+	if(G->out[e->head].next == NULL) G->V++;
+
+	G->out[e->tail].next = newNode(e->head, G->out[e->tail].next);
+	G->out[e->head].next = newNode(e->tail, G->out[e->head].next);
+	G->E += 2;
 	free(e);
 	return;
 }
@@ -110,8 +113,12 @@ Graph readGraph(char * filename){
 	G->V = 0;
 	G->E = 0;
 	for(i = 0; i < NETSIZE; i++){
-		G->list[i].next = NULL;
-		G->list[i].id = -1;
+		G->in[i].id = i;
+		G->in[i].next = newNode(i, NULL);
+		G->E++;
+
+		G->out[i].id = i;
+		G->out[i].next = NULL;
 	}
 
 	// Node addition from file input
