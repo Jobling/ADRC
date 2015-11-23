@@ -39,7 +39,7 @@ typedef struct edge{
 */
 typedef struct node{
 	long id;
-	link next;
+	struct node * next;
 } * link;
 
 /*
@@ -83,11 +83,19 @@ link newNode(long id, link next){
  * Insert a relationship into the graph
 */
 void graphInsertE(Graph G, Edge e){
-	if(G->out[e->tail].next == NULL) G->V++;
-	if(G->out[e->head].next == NULL) G->V++;
+	if(G->in[e->tail]->next == NULL){
+		G->in[e->tail]->next = newNode(e->tail, NULL);
+		G->V++;
+		G->E++;
+	}
+	if(G->out[e->head]->next == NULL){
+		G->in[e->head]->next = newNode(e->head, NULL);
+		G->V++;
+		G->E++;
+	}
 
-	G->out[e->tail].next = newNode(e->head, G->out[e->tail].next);
-	G->out[e->head].next = newNode(e->tail, G->out[e->head].next);
+	G->out[e->tail]->next = newNode(e->head, G->out[e->tail]->next);
+	G->out[e->head]->next = newNode(e->tail, G->out[e->head]->next);
 	G->E += 2;
 	free(e);
 	return;
@@ -113,12 +121,8 @@ Graph readGraph(char * filename){
 	G->V = 0;
 	G->E = 0;
 	for(i = 0; i < NETSIZE; i++){
-		G->in[i].id = i;
-		G->in[i].next = newNode(i, NULL);
-		G->E++;
-
-		G->out[i].id = i;
-		G->out[i].next = NULL;
+		G->in[i] = newNode(i, NULL);
+		G->out[i] = newNode(i, NULL);
 	}
 
 	// Node addition from file input
@@ -150,9 +154,10 @@ void delLinks(link l){
 */
 void memoryCheck(Graph G){
 	int i;
-	for(i = 0; i < NETSIZE; i++)
-		if(G->list[i].next != NULL)
-			delLinks(G->list[i].next);
+	for(i = 0; i < NETSIZE; i++){
+		delLinks(G->in[i]);
+		delLinks(G->out[i]);
+	}
 	free(G);
 }
 
@@ -160,7 +165,6 @@ void memoryCheck(Graph G){
 int main(int argc, char **argv){
 	Graph G;
 	char filename[BUFFSIZE];
-	int i;
 
 	// Obtaining filename from arguments
 	if(argc != 2){
