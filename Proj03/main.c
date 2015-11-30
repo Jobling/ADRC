@@ -28,37 +28,48 @@ because of the usage.
  * tail and head, and even the relationship from tail to head
 */
 typedef struct edge{
-	long tail;
-	long head;
+	int tail;
+	int head;
 } * Edge;
+
+/*
+ * This structure holds information about the capacities of a node
+*/
+typedef struct neighbor{
+	int id;
+	int c;
+	struct neighbor * next;
+} * link;
 
 /*
  * Each node should contain an identifier
  * A pointer to the next node (in adjency list)
  * And a relationship identifier 
 */
-typedef struct node{
-	long id;
-	struct node * next;
-} * link;
+typedef struct NODE{
+	int pred;
+	link n;
+} node;
 
 /*
  * The graph should contain information about the
  * size of the network, and the relationships between
  * the nodes (adjency list) 
+ * if(i < NETSIZE) it represents an out node (+)
+ * else it represents an inward node (-)
 */
 typedef struct graph{
 	int V;
 	int E;
-	link in[NETSIZE];
-	link out[NETSIZE];
+	int max_flow;
+	node list[2 * NETSIZE];
 } * Graph;
 
 // ----------------------------------------------- Functions ---------------------------------------
 /*
  * Create a new edge to be used in other functions
 */
-Edge newE(long tail, long head){
+Edge newE(int tail, int head){
 	Edge e = (Edge) malloc(sizeof(struct edge));
 
 	e->tail = tail;
@@ -70,10 +81,10 @@ Edge newE(long tail, long head){
 /*
  * Create a new node to be used in graphInsertE
 */
-link newNode(long id, link next){
-	link v = (link) malloc(sizeof(struct node));
-
+link newNode(int id, int c, link next){
+	link v = (link) malloc(sizeof(struct neighbor));
 	v->id = id;
+	v->c = c;
 	v->next = next;	
 
 	return v;
@@ -83,19 +94,22 @@ link newNode(long id, link next){
  * Insert a relationship into the graph
 */
 void graphInsertE(Graph G, Edge e){
-	if(G->in[e->tail]->next == NULL){
-		G->in[e->tail]->next = newNode(e->tail, NULL);
-		G->V++;
-		G->E++;
+	if(G->list[e->tail].n == NULL){
+		G->list[e->tail + NETSIZE].n = newNode(e->tail, 1, G->list[e->tail + NETSIZE].n);	// Apontar para tail (1)
+		G->list[e->tail].n = newNode(e->tail + NETSIZE, 0, G->list[e->tail].n);				// Apontar para tail + NETSIZE (0)
+		G->V += 2;
+		G->E += 2;
 	}
-	if(G->out[e->head]->next == NULL){
-		G->in[e->head]->next = newNode(e->head, NULL);
-		G->V++;
-		G->E++;
+	if(G->list[e->head].n == NULL){
+		G->list[e->head + NETSIZE].n = newNode(e->head, 1, G->list[e->head + NETSIZE].n);	// Apontar para head (1)
+		G->list[e->head].n = newNode(e->head + NETSIZE, 0, G->list[e->head].n);				// Apontar para head + NETSIZE (0)
+		G->V += 2;
+		G->E += 2;
 	}
-
-	G->out[e->tail]->next = newNode(e->head, G->out[e->tail]->next);
-	G->out[e->head]->next = newNode(e->tail, G->out[e->head]->next);
+	G->list[e->tail].n = newNode(e->head + NETSIZE, 1, G->list[e->tail].n);				// Apontar para head + NETSIZE (1)
+	G->list[e->head].n = newNode(e->tail + NETSIZE, 1, G->list[e->head].n);				// Apontar para tail + NETSIZE (1)
+	G->list[e->tail + NETSIZE].n = newNode(e->head, 0, G->list[e->tail + NETSIZE].n);		// Aponta para head (0)
+	G->list[e->head + NETSIZE].n = newNode(e->tail, 0, G->list[e->head + NETSIZE].n);		// Aponta para tail (0)
 	G->E += 2;
 	free(e);
 	return;
@@ -120,9 +134,10 @@ Graph readGraph(char * filename){
 	G = (Graph) malloc(sizeof(struct graph));
 	G->V = 0;
 	G->E = 0;
-	for(i = 0; i < NETSIZE; i++){
-		G->in[i] = newNode(i, NULL);
-		G->out[i] = newNode(i, NULL);
+	G->max_flow = 0;
+	for(i = 0; i < 2*NETSIZE; i++){
+		G->list[i].pred = -1;
+		G->list[i].n = NULL;
 	}
 
 	// Node addition from file input
@@ -154,10 +169,9 @@ void delLinks(link l){
 */
 void memoryCheck(Graph G){
 	int i;
-	for(i = 0; i < NETSIZE; i++){
-		delLinks(G->in[i]);
-		delLinks(G->out[i]);
-	}
+	for(i = 0; i < 2*NETSIZE; i++)
+		if(G->list[i].n != NULL)
+			delLinks(G->list[i].n);
 	free(G);
 }
 
