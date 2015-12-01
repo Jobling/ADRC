@@ -175,17 +175,77 @@ void memoryCheck(Graph G){
 	free(G);
 }
 
+/*
+ * Max flow algorithm
+*/
+int EdmondsKarp(Graph G, int source, int destination){
+	// Algoritmo Principal
+
+	/*
+	algorithm EdmondsKarp
+	    input:
+	        graph   (graph[v] should be the list of edges coming out of vertex v.
+	                 Each edge should have a capacity, flow, source and sink as parameters,
+	                 as well as a pointer to the reverse edge.)
+	        s       (Source vertex)
+	        t       (Sink vertex)
+	    output:
+	        flow    (Value of maximum flow)
+	    
+	    flow := 0   (Initial flow to zero)
+	    repeat
+	        (Run a bfs to find the shortest s-t path.
+	         We use 'pred' to store the edge taken to get to each vertex,
+	         so we can recover the path afterwards)
+	        q := queue()
+	        q.push(s)
+	        pred := array(graph.length)
+	        while not empty(q)
+	            cur := q.poll()
+	            for Edge e in graph[cur]
+	                 if pred[e.t] = null and e.t ≠ s and e.cap > e.flow
+	                    pred[e.t] := e
+	                    q.push(e.t)
+	        
+	        (Stop if we weren't able to find a path from s to t)
+	        if pred[t] = null
+	            break
+	        
+	        (Otherwise see how much flow we can send)
+	        df := ∞
+	        for (e := pred[t]; e ≠ null; e := pred[e.s])
+	            df := min(df, e.cap - e.flow)
+	        
+	        (And update edges by that amount)
+	        for (e := pred[t]; e ≠ null; e := pred[e.s])
+	            e.flow  := e.flow + df
+	            e.rev.flow := e.rev.flow - df
+	        
+	        flow := flow + df
+	    return flow
+	*/
+
+}
+
 // ----------------------------------------------- Main --------------------------------------------
 int main(int argc, char **argv){
 	Graph G;
 	char filename[BUFFSIZE];
+	int source, destination;
 
 	// Obtaining filename from arguments
-	if(argc != 2){
-		printf("Wrong number of arguments.\n");
-		exit(1);
+	switch(argc){
+		case(4):
+			sscanf(argv[2], "%d", &source);
+			sscanf(argv[3], "%d", &destination);
+		case(2):
+			sscanf(argv[1], "%s", filename);
+			break;
+		default:
+			printf("Wrong number of arguments.\n");
+			exit(1);
 	}
-	sscanf(argv[1], "%s", filename);
+	
 
 	// Reading Graph
 	G = readGraph(filename);
