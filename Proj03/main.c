@@ -1,18 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// #include <time.h>
-/*
-CLOCK USAGE
-clock_t start, end;
-int elapsed_time;
+#include <time.h>
 
-start = clock();
--- ALGORITHM
-end = clock();
-
-elapsed_time = (double)(end - start)/CLOCKS_PER_SEC;
-*/
 
 // ------------------------------------- MACROS and GLOBAL VARIABLES -------------------------------
 /*
@@ -25,7 +15,7 @@ because of the usage.
 // ------------------------------------------- Data Structures -------------------------------------
 /*
  * Each edge should contain an identifier for both
- * tail and head, and even the relationship from tail to head
+ * tail and head
 */
 typedef struct edge{
 	int tail;
@@ -33,7 +23,7 @@ typedef struct edge{
 } * Edge;
 
 /*
- * This structure holds information about the capacities of a node
+ * This structure holds information about the capacities of an edge
 */
 typedef struct neighbor{
 	int id;
@@ -42,9 +32,10 @@ typedef struct neighbor{
 } * link;
 
 /*
- * Each node should contain an identifier
- * A pointer to the next node (in adjency list)
- * And a relationship identifier 
+ * Each node contains:
+ * A list of adjacent nodes
+ * And a index for the final predecessor (used when finding which 
+ * nodes are needed to separate the graph)
 */
 typedef struct NODE{
 	int pred;
@@ -53,8 +44,8 @@ typedef struct NODE{
 
 /*
  * The graph should contain information about the
- * size of the network, and the relationships between
- * the nodes (adjency list) 
+ * size of the network, the nodes (adjency list) 
+ * and statistical information about the graph (flows)
  * if(i < NETSIZE) it represents an out node (+)
  * else it represents an inward node (-)
 */
@@ -92,7 +83,8 @@ link newNode(int id, int c, link next){
 }
 
 /*
- * Insert a relationship into the graph
+ * Insert an edge into the graph
+ * Produce a 'residual' graph preparation with vertex splitting
 */
 void graphInsertE(Graph G, Edge e){
 	if(G->list[e->tail].n == NULL){
@@ -115,7 +107,7 @@ void graphInsertE(Graph G, Edge e){
 }
 
 /*
- * Read the graph from a file and store it in a Graph * named G
+ * Read the graph from a file and store it in a Graph named G
 */
 Graph readGraph(char * filename){
 	FILE *fp;
@@ -180,7 +172,8 @@ void memoryCheck(Graph G){
 }
 
 /*
- * Between iterations 
+ * Function to be used between iterations
+ * to regain original graph capacities 
 */
 void reset(Graph G){
 	int i;
@@ -206,6 +199,8 @@ int EdmondsKarp(Graph G, int source, int destination){
 	int i, j;
 	link aux;
 	
+	// Check if the nodes are neighbors (no other nodes between them)
+	// and if source and destination 'are in the graph'
 	if(G->list[source].n == NULL) return 0;
 	if(G->list[destination].n == NULL) return 0;
 	for(aux = G->list[source].n; aux != NULL; aux = aux->next)
@@ -214,49 +209,70 @@ int EdmondsKarp(Graph G, int source, int destination){
 
 	while(1){
 		// Restarting
-		i = 0;
-		j = 1;
-		aux = NULL;
 		memset(q, -1, 2 * NETSIZE * sizeof(int));
 		memset(p, -1, 2 * NETSIZE * sizeof(int));
+		q[0] = source;
 		
-		q[i] = source;
-		// BFS
-		while(i < j){
+		// ----------------------- BFS --------------------------------
+		// For every node in the queue
+		for(i = 0, j = 1, aux = NULL; i < j; i++){
+			// For every neighbor of the current node
 			for(aux = G->list[q[i]].n; aux != NULL; aux = aux->next){
+				// If the neighbor wasn't visited (no pred), add to queue
 				if(aux->c && p[aux->id] == -1 && aux->id != source){
 					q[j] = aux->id;
 					p[q[j]] = q[i];
 					j++;
 				} 
 			}
+			// If path to destination is found halfway BFS break
 			if(p[destination] != -1) break;
-			i++;
 		}
-		// No more paths left
+		// -------------------- END OF BFS ----------------------------
+		
+		// If after BFS search, the destination has no predecessor,
+		// there are no more paths to the destination, on the residual
+		// graph, so break from while(1)
 		if(p[destination] == -1) break;
 		
-		// Invert all edges
+		// If a path is found, the capacity of its edges must be inverted
+		// on the residual graph. So, for every node, starting on the
+		// destination and ending on the source:
 		for(i = destination; i != source; i = G->list[i].pred){
-			for(aux = G->list[i].n; aux != NULL; aux = aux->next){
+			// For every neighbor of the node
+			for(aux = G->list[i].n; aux != NULL; aux = aux->next)
+				// If the neighbor is the node's predecessor for this path
+				// the capacity must be inverted (full capacity)
 				if(aux->id == p[i]){
 					aux->c = 1;
 					break;
 				}
-			}
-			for(aux = G->list[p[i]].n; aux != NULL; aux = aux->next){
+			// For every neighbor of the node's predecessor	
+			for(aux = G->list[p[i]].n; aux != NULL; aux = aux->next)
+				// If the predecessor's neighbor is the node being 
+				// 'targeted' the capacity must be inverted (no capacity)
 				if(aux->id == i){
 					aux->c = 0;
 					break;
 				}
-			}
+			// For the sake of finding the nodes that might be removed 
+			// to separate the graph, the predecessor values for each 
+			// discovered path must be stored	
 			G->list[i].pred = p[i];
 		}
+		// Since the capacities are all unitary, the flow is incremented
 		flow++;
 	}
+	// Before exiting this function, the graph is left as it was read from
+	// the file with the call of function reset(G)
 	reset(G);
 	
+	// For the statistical component of the assignement, the total number 
+	// of independent paths (alas, the flow) must be stored
 	G->flow[flow]++;
+	
+	// Return the flow (not needed, this function could be void and the 
+	// verfications done in main() could be done here
 	return flow;
 }
 
@@ -305,8 +321,9 @@ void findNodes(Graph G, int source, int destination){
 			} 
 		}
 	}
-	printf("To separate %d from %d remove nodes (%d paths):\n", source, destination, G->min_flow);
+	printf("To separate %-3d from %-3d remove nodes (%d paths):\n", source, destination, G->min_flow);
 	for(k = 0; k < G->min_flow; k++) printf("--> %d\n", nodes[k] % NETSIZE);
+	printf("-------------------------------------------------------\n");
 	free(nodes); 
 }
 
@@ -316,16 +333,17 @@ void findNodes(Graph G, int source, int destination){
 void printResult(Graph G){
 	int i = 0;
 	int paths = 0;
-	int V_TOTAL = G->V * (G->V );
+	int V_TOTAL = G->V * (G->V - 1)/2;
 	
 	for(i = 0; i< NETSIZE; i++)
 	for(i = 0; i < NETSIZE; i++){
 		if(G->flow[i] != 0){
-			printf("There are %d pairs of nodes separated by %d nodes (%.3f%%)\n", G->flow[i], i, (G->flow[i]*100.0/V_TOTAL));
+			printf("There are %-3d pairs of nodes separated by %-3d nodes [%-3.3f%%]\n", G->flow[i], i, (G->flow[i]*100.0/V_TOTAL));
 			paths += G->flow[i];
 		}
 	}
-	printf("There are %d pairs of nodes that are not separable (%.3f%%)\n", paths, (paths*100.0/V_TOTAL));
+	printf("There are %-3d pairs of nodes that are not separable [%-3.3f%%]\n", V_TOTAL - paths, ((V_TOTAL-paths)*100.0/V_TOTAL));
+	printf("-------------------------------------------------------\n");
 }
 
 // ----------------------------------------------- Main --------------------------------------------
@@ -334,6 +352,8 @@ int main(int argc, char **argv){
 	char filename[BUFFSIZE];
 	int source, destination;
 	int nodes;
+	double elapsed_time;
+	clock_t start, end;
 
 	// Obtaining filename from arguments
 	switch(argc){
@@ -361,6 +381,7 @@ int main(int argc, char **argv){
 		if((G->min_flow = EdmondsKarp(G, source, destination + NETSIZE)) != 0)
 			findNodes(G, source, destination);
 	}else{
+		start = clock();
 		for(source = 0; source < NETSIZE - 1; source++){
 			for(destination = source + 1; destination < NETSIZE; destination++){
 				if(source != destination){
@@ -373,7 +394,11 @@ int main(int argc, char **argv){
 				}
 			}
 		}
+		end = clock();
+		elapsed_time = (double)(end - start)/CLOCKS_PER_SEC;
 		printResult(G);
+		printf("Algorithm takes %f seconds\n", elapsed_time);
+		printf("-------------------------------------------------------\n");
 	}
 	
 	// Free Memory allocated previously
