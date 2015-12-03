@@ -110,7 +110,7 @@ void graphInsertE(Graph G, Edge e){
 	G->list[e->head].n = newNode(e->tail + NETSIZE, 1, G->list[e->head].n);				// Apontar para tail + NETSIZE (1)
 	G->list[e->tail + NETSIZE].n = newNode(e->head, 0, G->list[e->tail + NETSIZE].n);		// Aponta para head (0)
 	G->list[e->head + NETSIZE].n = newNode(e->tail, 0, G->list[e->head + NETSIZE].n);		// Aponta para tail (0)
-	G->E += 2;
+	G->E += 4;
 	free(e);
 	return;
 }
@@ -176,55 +176,81 @@ void memoryCheck(Graph G){
 }
 
 /*
+ * Between iterations 
+*/
+void reset(Graph G){
+	int i;
+	link aux;
+	for(i = 0; i < 2 * NETSIZE; i++)
+		for(aux = G->list[i].n; aux != NULL; aux = aux->next)
+			if(i < NETSIZE)
+				if(aux->id == i + NETSIZE) aux->c = 0;
+				else aux->c = 1;
+			else
+				if(aux->id == i - NETSIZE) aux->c = 1;
+				else aux->c = 0;
+}
+
+/*
  * Max flow algorithm
+ * On main call EdmondsKarp(G, source, destination + NETSIZE)
 */
 int EdmondsKarp(Graph G, int source, int destination){
-	// Algoritmo Principal
+	int q[2 * NETSIZE];
+	int flow = 0;
+	int i, j;
+	link aux;
+	
+	if(G->list[source].n == NULL) return 0;
+	for(aux = G->list[source].n; aux != NULL; aux = aux->next)
+		if(aux->id == destination)
+			return 0;
+	
+	G->list[source].pred = -5;
 
-	/*
-	algorithm EdmondsKarp
-	    input:
-	        graph   (graph[v] should be the list of edges coming out of vertex v.
-	                 Each edge should have a capacity, flow, source and sink as parameters,
-	                 as well as a pointer to the reverse edge.)
-	        s       (Source vertex)
-	        t       (Sink vertex)
-	    output:
-	        flow    (Value of maximum flow)
-	    
-	    flow := 0   (Initial flow to zero)
-	    repeat
-	        (Run a bfs to find the shortest s-t path.
-	         We use 'pred' to store the edge taken to get to each vertex,
-	         so we can recover the path afterwards)
-	        q := queue()
-	        q.push(s)
-	        pred := array(graph.length)
-	        while not empty(q)
-	            cur := q.poll()
-	            for Edge e in graph[cur]
-	                 if pred[e.t] = null and e.t ≠ s and e.cap > e.flow
-	                    pred[e.t] := e
-	                    q.push(e.t)
-	        
-	        (Stop if we weren't able to find a path from s to t)
-	        if pred[t] = null
-	            break
-	        
-	        (Otherwise see how much flow we can send)
-	        df := ∞
-	        for (e := pred[t]; e ≠ null; e := pred[e.s])
-	            df := min(df, e.cap - e.flow)
-	        
-	        (And update edges by that amount)
-	        for (e := pred[t]; e ≠ null; e := pred[e.s])
-	            e.flow  := e.flow + df
-	            e.rev.flow := e.rev.flow - df
-	        
-	        flow := flow + df
-	    return flow
-	*/
-
+	while(1){
+		// Restarting
+		memset(q, -1, 2 * NETSIZE * sizeof(int));
+		i = 0;
+		j = 1;
+		aux = NULL;
+		
+		q[i] = source;
+		// BFS
+		while(i < j){
+			for(aux = G->list[q[i]].n; aux != NULL; aux = aux->next){
+				if(aux->c && G->list[aux->id].pred == -1){
+					q[j] = aux->id;
+					G->list[q[j]].pred = q[i];
+					j++;
+				} 
+			}
+			if(G->list[destination].pred != -1) break;
+			i++;
+		}
+		// No more paths left
+		if(G->list[destination].pred == -1) break;
+		
+		// Invert all edges
+		for(i = destination; i != source; i = G->list[i].pred){
+			for(aux = G->list[i].n; aux != NULL; aux = aux->next){
+				if(aux->id == G->list[i].pred){
+					aux->c = 1;
+					break;
+				}
+			}
+			for(aux = G->list[G->list[i].pred].n; aux != NULL; aux = aux->next){
+				if(aux->id == i){
+					aux->c = 0;
+					break;
+				}
+			}
+		}
+		for(i = 0; i <= j; i++) G->list[q[i]].pred = -1;
+		flow++;
+	}
+	for(i = 0; i <= j; i++) G->list[q[i]].pred = -1;
+	return flow;
 }
 
 // ----------------------------------------------- Main --------------------------------------------
@@ -232,6 +258,7 @@ int main(int argc, char **argv){
 	Graph G;
 	char filename[BUFFSIZE];
 	int source, destination;
+	int nodes;
 
 	// Obtaining filename from arguments
 	switch(argc){
@@ -253,7 +280,22 @@ int main(int argc, char **argv){
 	printf("-------------------------------------------------------\n");
 	printf("There are %d nodes and %d edges!\n", G->V, G->E);
 	printf("-------------------------------------------------------\n");
-
+	
+	if(argc == 4){
+		printf("To separate %d from %d --> Remove %d nodes\n", source, destination, EdmondsKarp(G, source, destination + NETSIZE));
+	}else{
+		for(source = 0; source < NETSIZE - 1; source++){
+			for(destination = source + 1; destination < NETSIZE; destination++){
+				if(source != destination){
+					if((nodes = EdmondsKarp(G, source, destination + NETSIZE)) != 0){
+						printf("To separate %d from %d --> Remove %d nodes\n", source, destination, nodes);
+						reset(G);
+					}
+				}
+			}
+		}
+	}
+	
 	// Free Memory allocated previously
 	memoryCheck(G);
 	exit(0);
