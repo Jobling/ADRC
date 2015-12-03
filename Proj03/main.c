@@ -61,7 +61,8 @@ typedef struct NODE{
 typedef struct graph{
 	int V;
 	int E;
-	int max_flow;
+	int min_flow;
+	int flow[NETSIZE];
 	node list[2 * NETSIZE];
 } * Graph;
 
@@ -97,20 +98,18 @@ void graphInsertE(Graph G, Edge e){
 	if(G->list[e->tail].n == NULL){
 		G->list[e->tail + NETSIZE].n = newNode(e->tail, 1, G->list[e->tail + NETSIZE].n);	// Apontar para tail (1)
 		G->list[e->tail].n = newNode(e->tail + NETSIZE, 0, G->list[e->tail].n);				// Apontar para tail + NETSIZE (0)
-		G->V += 2;
-		G->E += 2;
+		G->V++;
 	}
 	if(G->list[e->head].n == NULL){
 		G->list[e->head + NETSIZE].n = newNode(e->head, 1, G->list[e->head + NETSIZE].n);	// Apontar para head (1)
 		G->list[e->head].n = newNode(e->head + NETSIZE, 0, G->list[e->head].n);				// Apontar para head + NETSIZE (0)
-		G->V += 2;
-		G->E += 2;
+		G->V++;
 	}
 	G->list[e->tail].n = newNode(e->head + NETSIZE, 1, G->list[e->tail].n);				// Apontar para head + NETSIZE (1)
 	G->list[e->head].n = newNode(e->tail + NETSIZE, 1, G->list[e->head].n);				// Apontar para tail + NETSIZE (1)
 	G->list[e->tail + NETSIZE].n = newNode(e->head, 0, G->list[e->tail + NETSIZE].n);		// Aponta para head (0)
 	G->list[e->head + NETSIZE].n = newNode(e->tail, 0, G->list[e->head + NETSIZE].n);		// Aponta para tail (0)
-	G->E += 4;
+	G->E++;
 	free(e);
 	return;
 }
@@ -134,10 +133,15 @@ Graph readGraph(char * filename){
 	G = (Graph) malloc(sizeof(struct graph));
 	G->V = 0;
 	G->E = 0;
-	G->max_flow = 0;
-	for(i = 0; i < 2*NETSIZE; i++){
+	G->min_flow = NETSIZE;
+	for(i = 0; i < NETSIZE; i++){
+		G->flow[i] = 0;
+		
 		G->list[i].pred = -1;
 		G->list[i].n = NULL;
+		
+		G->list[i + NETSIZE].pred = -1;
+		G->list[i + NETSIZE].n = NULL;
 	}
 
 	// Node addition from file input
@@ -196,61 +200,132 @@ void reset(Graph G){
  * On main call EdmondsKarp(G, source, destination + NETSIZE)
 */
 int EdmondsKarp(Graph G, int source, int destination){
-	int q[2 * NETSIZE];
+	int q[2 * NETSIZE];		// BFS queue vector
+	int p[2 * NETSIZE];		// Path auxiliary predecessor vector
 	int flow = 0;
 	int i, j;
 	link aux;
 	
 	if(G->list[source].n == NULL) return 0;
+	if(G->list[destination].n == NULL) return 0;
 	for(aux = G->list[source].n; aux != NULL; aux = aux->next)
 		if(aux->id == destination)
 			return 0;
-	
-	G->list[source].pred = -5;
 
 	while(1){
 		// Restarting
-		memset(q, -1, 2 * NETSIZE * sizeof(int));
 		i = 0;
 		j = 1;
 		aux = NULL;
+		memset(q, -1, 2 * NETSIZE * sizeof(int));
+		memset(p, -1, 2 * NETSIZE * sizeof(int));
 		
 		q[i] = source;
 		// BFS
 		while(i < j){
 			for(aux = G->list[q[i]].n; aux != NULL; aux = aux->next){
-				if(aux->c && G->list[aux->id].pred == -1){
+				if(aux->c && p[aux->id] == -1 && aux->id != source){
 					q[j] = aux->id;
-					G->list[q[j]].pred = q[i];
+					p[q[j]] = q[i];
 					j++;
 				} 
 			}
-			if(G->list[destination].pred != -1) break;
+			if(p[destination] != -1) break;
 			i++;
 		}
 		// No more paths left
-		if(G->list[destination].pred == -1) break;
+		if(p[destination] == -1) break;
 		
 		// Invert all edges
 		for(i = destination; i != source; i = G->list[i].pred){
 			for(aux = G->list[i].n; aux != NULL; aux = aux->next){
-				if(aux->id == G->list[i].pred){
+				if(aux->id == p[i]){
 					aux->c = 1;
 					break;
 				}
 			}
-			for(aux = G->list[G->list[i].pred].n; aux != NULL; aux = aux->next){
+			for(aux = G->list[p[i]].n; aux != NULL; aux = aux->next){
 				if(aux->id == i){
 					aux->c = 0;
 					break;
 				}
 			}
+			G->list[i].pred = p[i];
 		}
-		for(i = 0; i <= j; i++) G->list[q[i]].pred = -1;
 		flow++;
 	}
-	for(i = 0; i <= j; i++) G->list[q[i]].pred = -1;
+	reset(G);
+	
+	G->flow[flow]++;
 	return flow;
+}
+
+/*
+ * Function that gives an example of nodes to separate Graph 
+*/
+void findNodes(Graph G, int source, int destination){
+	int q[2 * NETSIZE];		// BFS queue vector
+	int p[2 * NETSIZE];		// Path auxiliary predecessor vector
+	int i, j, k, l;
+	int * nodes;
+	link aux;
+	
+	// Vector containing nodes to be removed
+	nodes = (int *) malloc(G->min_flow * sizeof(int));
+	for(k = 0; k < G->min_flow; k++) nodes[k] = -1;
+	
+	memset(q, -1, 2 * NETSIZE * sizeof(int));
+	memset(p, -1, 2 * NETSIZE * sizeof(int));
+	
+	// BFS
+	for(q[0] = source, i = 0, j = 1, aux = NULL; i < j; i++){
+		for(aux = G->list[q[i]].n; aux != NULL; aux = aux->next){
+			if(aux->c && p[aux->id] == -1 && aux->id != source && aux->id != destination){
+				if(G->list[aux->id].pred != -1){
+					// Running through discovered nodes
+					for(k = 0; k < G->min_flow; k++) 
+						if(nodes[k] == -1 || nodes[k] == aux->id){
+							nodes[k] = aux->id;
+							break;
+						}
+					if(k == G->min_flow){
+						for(l = G->list[aux->id].pred; G->list[l].pred != source; l = G->list[l].pred){
+							for(k = 0; k < G->min_flow; k++)
+								if(nodes[k] == l){
+									nodes[k] = aux->id;
+									break;
+								}
+						}
+					}
+				}else{
+					q[j] = aux->id;
+					p[q[j]] = q[i];
+					j++;
+				}
+			} 
+		}
+	}
+	printf("To separate %d from %d remove nodes (%d paths):\n", source, destination, G->min_flow);
+	for(k = 0; k < G->min_flow; k++) printf("--> %d\n", nodes[k] % NETSIZE);
+	free(nodes); 
+}
+
+/*
+ * Print statistics
+*/
+void printResult(Graph G){
+	int i = 0;
+	int paths = 0;
+	int V_TOTAL = G->V * (G->V );
+	
+	for(i = 0; i< NETSIZE; i++)
+	for(i = 0; i < NETSIZE; i++){
+		if(G->flow[i] != 0){
+			printf("There are %d pairs of nodes separated by %d nodes (%.3f%%)\n", G->flow[i], i, (G->flow[i]*100.0/V_TOTAL));
+			paths += G->flow[i];
+		}
+	}
+	printf("There are %d pairs of nodes that are not separable (%.3f%%)\n", paths, (paths*100.0/V_TOTAL));
 }
 
 // ----------------------------------------------- Main --------------------------------------------
@@ -279,21 +354,26 @@ int main(int argc, char **argv){
 
 	printf("-------------------------------------------------------\n");
 	printf("There are %d nodes and %d edges!\n", G->V, G->E);
+	printf("There are %d nodes and %d edges on the 'residual' network!\n", 2*G->V, 4*G->E + 2*G->V);
 	printf("-------------------------------------------------------\n");
 	
 	if(argc == 4){
-		printf("To separate %d from %d --> Remove %d nodes\n", source, destination, EdmondsKarp(G, source, destination + NETSIZE));
+		if((G->min_flow = EdmondsKarp(G, source, destination + NETSIZE)) != 0)
+			findNodes(G, source, destination);
 	}else{
 		for(source = 0; source < NETSIZE - 1; source++){
 			for(destination = source + 1; destination < NETSIZE; destination++){
 				if(source != destination){
 					if((nodes = EdmondsKarp(G, source, destination + NETSIZE)) != 0){
-						printf("To separate %d from %d --> Remove %d nodes\n", source, destination, nodes);
-						reset(G);
+						if(nodes < G->min_flow){
+							G->min_flow = nodes;
+							findNodes(G, source, destination);
+						}
 					}
 				}
 			}
 		}
+		printResult(G);
 	}
 	
 	// Free Memory allocated previously
