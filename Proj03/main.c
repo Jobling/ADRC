@@ -52,7 +52,7 @@ typedef struct NODE{
 typedef struct graph{
 	int V;
 	int E;
-	int min_flow;
+	int n_flow;
 	int flow[NETSIZE];
 	node list[2 * NETSIZE];
 } * Graph;
@@ -127,7 +127,7 @@ Graph readGraph(char * filename){
 	G = (Graph) malloc(sizeof(struct graph));
 	G->V = 0;
 	G->E = 0;
-	G->min_flow = NETSIZE;
+	G->n_flow = 0;
 	for(i = 0; i < NETSIZE; i++){
 		G->flow[i] = 0;
 		
@@ -191,8 +191,26 @@ void reset(Graph G){
 }
 
 /*
+ * Print statistics
+*/
+void printResult(Graph G){
+	int i = 0;
+	int V_TOTAL = G->V * (G->V - 1)/2;
+	
+	for(i = 1; i < NETSIZE; i++)
+		if(G->flow[i] != 0)
+			printf("There are %-3d pairs of nodes separated by %-3d nodes [%-3.3f%%]\n", G->flow[i], i, (G->flow[i]*100.0/V_TOTAL));
+	printf("There are %-3d pairs of nodes that are not separable [%-3.3f%%]\n", G->flow[0], (G->flow[0]*100.0/V_TOTAL));
+	printf("-------------------------------------------------------\n");
+}
+
+// ------------------------------------------- Algorithms ------------------------------------------
+/*
  * Max flow algorithm
- * On main call EdmondsKarp(G, source, destination + NETSIZE)
+ * On main() call EdmondsKarp(G, source, destination + NETSIZE)
+ * Returns:
+ * 	1 -> There is at least one independent path
+ *  0 -> There is no path
 */
 int EdmondsKarp(Graph G, int source, int destination){
 	int q[2 * NETSIZE];		// BFS queue vector
@@ -276,24 +294,27 @@ int EdmondsKarp(Graph G, int source, int destination){
 	// of independent paths (alas, the flow) must be stored
 	G->flow[flow]++;
 	
-	// Return the flow (not needed, this function could be void and the 
-	// verfications done in main() could be done here
-	return flow;
+	// Update flow
+	G->n_flow = flow;
+	
+	// Return (flow != 0) [only 0 when there is no path]
+	return (flow != 0);
 }
 
 /*
  * Function that gives an example of nodes to separate Graph 
+ * and prints result on console
 */
 void findNodes(Graph G, int source, int destination){
 	int q[2 * NETSIZE];		// BFS queue vector
 	int p[2 * NETSIZE];		// Path auxiliary predecessor vector
 	int i, j, k, l;
-	int * nodes;
+	int * nodes;			// Vector used to store possible removable nodes
 	link aux;
 	
 	// Vector containing nodes to be removed
-	nodes = (int *) malloc(G->min_flow * sizeof(int));
-	for(k = 0; k < G->min_flow; k++) nodes[k] = -1;
+	nodes = (int *) malloc(G->n_flow * sizeof(int));
+	for(k = 0; k < G->n_flow; k++) nodes[k] = -1;
 	
 	memset(q, -1, 2 * NETSIZE * sizeof(int));
 	memset(p, -1, 2 * NETSIZE * sizeof(int));
@@ -304,14 +325,14 @@ void findNodes(Graph G, int source, int destination){
 			if(aux->c && p[aux->id] == -1 && aux->id != source && aux->id != destination){
 				if(G->list[aux->id].pred != -1){
 					// Running through discovered nodes
-					for(k = 0; k < G->min_flow; k++) 
+					for(k = 0; k < G->n_flow; k++) 
 						if(nodes[k] == -1 || nodes[k] == aux->id){
 							nodes[k] = aux->id;
 							break;
 						}
-					if(k == G->min_flow){
+					if(k == G->n_flow){
 						for(l = G->list[aux->id].pred; l != source; l = G->list[l].pred){
-							for(k = 0; k < G->min_flow; k++)
+							for(k = 0; k < G->n_flow; k++)
 								if(nodes[k] == l){
 									nodes[k] = aux->id;
 									break;
@@ -326,8 +347,8 @@ void findNodes(Graph G, int source, int destination){
 			} 
 		}
 	}
-	printf("To separate %-3d from %-3d remove nodes (%d paths):\n", source, destination, G->min_flow);
-	for(k = 0; k < G->min_flow; k++) printf("--> %d\n", nodes[k] % NETSIZE);
+	printf("To separate %-3d from %-3d remove nodes (%d paths):\n", source, destination, G->n_flow);
+	for(k = 0; k < G->n_flow; k++) printf("--> %d\n", nodes[k] % NETSIZE);
 	printf("-------------------------------------------------------\n");
 	
 	// Reset the paths so that no residual paths may produce  
@@ -337,48 +358,25 @@ void findNodes(Graph G, int source, int destination){
 	
 }
 
-/*
- * Print statistics
-*/
-void printResult(Graph G){
-	int i = 0;
-	int V_TOTAL = G->V * (G->V - 1)/2;
-	
-	for(i = 1; i < NETSIZE; i++)
-		if(G->flow[i] != 0)
-			printf("There are %-3d pairs of nodes separated by %-3d nodes [%-3.3f%%]\n", G->flow[i], i, (G->flow[i]*100.0/V_TOTAL));
-	printf("There are %-3d pairs of nodes that are not separable [%-3.3f%%]\n", G->flow[0], (G->flow[0]*100.0/V_TOTAL));
-	printf("-------------------------------------------------------\n");
-}
-
 // ----------------------------------------------- Main --------------------------------------------
-/* Errors on BigGraph (GLOBAL execution. Locally works)
- * 2 - 6 
- * 2 - 8 
- * 2 - 12
- * 2 - 13 
- * 2 - 15 
- * 2 - 16 
- * 4 - 11 
- * 4 - 13
- * 4 - 14 
- * 4 - 15 
- * 4 - 16 
- * 
-*/
 int main(int argc, char **argv){
 	Graph G;
 	char filename[BUFFSIZE];
 	int source, destination;
-	int nodes;
 	double elapsed_time;
 	clock_t start, end;
+	
+	int VERBOSE = 0;
 
 	// Obtaining filename from arguments
 	switch(argc){
 		case(4):
-			sscanf(argv[2], "%d", &source);
-			sscanf(argv[3], "%d", &destination);
+			if((sscanf(argv[2], "%d", &source) != 1) || (sscanf(argv[3], "%d", &destination) != 1)){
+				printf("Inputs must be integers.\n");
+				exit(1);
+			}
+		case(3):
+			VERBOSE = 1;
 		case(2):
 			sscanf(argv[1], "%s", filename);
 			break;
@@ -397,18 +395,15 @@ int main(int argc, char **argv){
 	printf("-------------------------------------------------------\n");
 	
 	if(argc == 4){
-		if((G->min_flow = EdmondsKarp(G, source, destination + NETSIZE)) != 0)
+		if(EdmondsKarp(G, source, destination + NETSIZE))
 			findNodes(G, source, destination);
 	}else{
 		start = clock();
 		for(source = 0; source < NETSIZE; source++)
 			for(destination = source + 1; destination < NETSIZE; destination++)
 				if(source != destination)
-					if((nodes = EdmondsKarp(G, source, destination + NETSIZE)) != 0)
-						if(nodes < G->min_flow){
-							G->min_flow = nodes;
-							findNodes(G, source, destination);
-						}
+					if(EdmondsKarp(G, source, destination + NETSIZE) && VERBOSE)
+						findNodes(G, source, destination);
 				
 		end = clock();
 		elapsed_time = (double)(end - start)/CLOCKS_PER_SEC;
