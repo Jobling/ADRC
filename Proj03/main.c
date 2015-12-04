@@ -92,13 +92,15 @@ void graphInsertE(Graph G, Edge e){
 		G->list[e->tail].n = newNode(e->tail + NETSIZE, 0, G->list[e->tail].n);				// Apontar para tail + NETSIZE (0)
 		G->V++;
 	}
+	
 	if(G->list[e->head].n == NULL){
 		G->list[e->head + NETSIZE].n = newNode(e->head, 1, G->list[e->head + NETSIZE].n);	// Apontar para head (1)
 		G->list[e->head].n = newNode(e->head + NETSIZE, 0, G->list[e->head].n);				// Apontar para head + NETSIZE (0)
 		G->V++;
 	}
-	G->list[e->tail].n = newNode(e->head + NETSIZE, 1, G->list[e->tail].n);				// Apontar para head + NETSIZE (1)
-	G->list[e->head].n = newNode(e->tail + NETSIZE, 1, G->list[e->head].n);				// Apontar para tail + NETSIZE (1)
+	
+	G->list[e->tail].n = newNode(e->head + NETSIZE, 1, G->list[e->tail].n);					// Apontar para head + NETSIZE (1)
+	G->list[e->head].n = newNode(e->tail + NETSIZE, 1, G->list[e->head].n);					// Apontar para tail + NETSIZE (1)
 	G->list[e->tail + NETSIZE].n = newNode(e->head, 0, G->list[e->tail + NETSIZE].n);		// Aponta para head (0)
 	G->list[e->head + NETSIZE].n = newNode(e->tail, 0, G->list[e->head + NETSIZE].n);		// Aponta para tail (0)
 	G->E++;
@@ -172,8 +174,8 @@ void memoryCheck(Graph G){
 }
 
 /*
- * Function to be used between iterations
- * to regain original graph capacities 
+ * Function to be used after independent paths are found
+ * to regain original graph capacities  
 */
 void reset(Graph G){
 	int i;
@@ -199,13 +201,16 @@ int EdmondsKarp(Graph G, int source, int destination){
 	int i, j;
 	link aux;
 	
-	// Check if the nodes are neighbors (no other nodes between them)
-	// and if source and destination 'are in the graph'
-	if(G->list[source].n == NULL) return 0;
-	if(G->list[destination].n == NULL) return 0;
+	// Check if source and destination are 'in the graph'
+	if(G->list[source].n == NULL || G->list[destination].n == NULL) return 0;
+	
+	// If the source and the destination are neighbors, they are
+	// inseperable, and so there are no independent paths between them
 	for(aux = G->list[source].n; aux != NULL; aux = aux->next)
-		if(aux->id == destination)
+		if(aux->id == destination){
+			G->flow[0]++;
 			return 0;
+		}
 
 	while(1){
 		// Restarting
@@ -305,7 +310,7 @@ void findNodes(Graph G, int source, int destination){
 							break;
 						}
 					if(k == G->min_flow){
-						for(l = G->list[aux->id].pred; G->list[l].pred != source; l = G->list[l].pred){
+						for(l = G->list[aux->id].pred; l != source; l = G->list[l].pred){
 							for(k = 0; k < G->min_flow; k++)
 								if(nodes[k] == l){
 									nodes[k] = aux->id;
@@ -324,7 +329,12 @@ void findNodes(Graph G, int source, int destination){
 	printf("To separate %-3d from %-3d remove nodes (%d paths):\n", source, destination, G->min_flow);
 	for(k = 0; k < G->min_flow; k++) printf("--> %d\n", nodes[k] % NETSIZE);
 	printf("-------------------------------------------------------\n");
+	
+	// Reset the paths so that no residual paths may produce  
+	// errors on other iterations 
+	for(i = 0; i < 2 * NETSIZE; i++) G->list[i].pred = -1;
 	free(nodes); 
+	
 }
 
 /*
@@ -332,21 +342,30 @@ void findNodes(Graph G, int source, int destination){
 */
 void printResult(Graph G){
 	int i = 0;
-	int paths = 0;
 	int V_TOTAL = G->V * (G->V - 1)/2;
 	
-	for(i = 0; i< NETSIZE; i++)
-	for(i = 0; i < NETSIZE; i++){
-		if(G->flow[i] != 0){
+	for(i = 1; i < NETSIZE; i++)
+		if(G->flow[i] != 0)
 			printf("There are %-3d pairs of nodes separated by %-3d nodes [%-3.3f%%]\n", G->flow[i], i, (G->flow[i]*100.0/V_TOTAL));
-			paths += G->flow[i];
-		}
-	}
-	printf("There are %-3d pairs of nodes that are not separable [%-3.3f%%]\n", V_TOTAL - paths, ((V_TOTAL-paths)*100.0/V_TOTAL));
+	printf("There are %-3d pairs of nodes that are not separable [%-3.3f%%]\n", G->flow[0], (G->flow[0]*100.0/V_TOTAL));
 	printf("-------------------------------------------------------\n");
 }
 
 // ----------------------------------------------- Main --------------------------------------------
+/* Errors on BigGraph (GLOBAL execution. Locally works)
+ * 2 - 6 
+ * 2 - 8 
+ * 2 - 12
+ * 2 - 13 
+ * 2 - 15 
+ * 2 - 16 
+ * 4 - 11 
+ * 4 - 13
+ * 4 - 14 
+ * 4 - 15 
+ * 4 - 16 
+ * 
+*/
 int main(int argc, char **argv){
 	Graph G;
 	char filename[BUFFSIZE];
@@ -382,18 +401,15 @@ int main(int argc, char **argv){
 			findNodes(G, source, destination);
 	}else{
 		start = clock();
-		for(source = 0; source < NETSIZE - 1; source++){
-			for(destination = source + 1; destination < NETSIZE; destination++){
-				if(source != destination){
-					if((nodes = EdmondsKarp(G, source, destination + NETSIZE)) != 0){
+		for(source = 0; source < NETSIZE; source++)
+			for(destination = source + 1; destination < NETSIZE; destination++)
+				if(source != destination)
+					if((nodes = EdmondsKarp(G, source, destination + NETSIZE)) != 0)
 						if(nodes < G->min_flow){
 							G->min_flow = nodes;
 							findNodes(G, source, destination);
 						}
-					}
-				}
-			}
-		}
+				
 		end = clock();
 		elapsed_time = (double)(end - start)/CLOCKS_PER_SEC;
 		printResult(G);
