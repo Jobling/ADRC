@@ -12,6 +12,7 @@ because of the usage.
 #define BUFFSIZE 64
 #define NETSIZE 100
 
+int VERBOSE = 0;
 // ------------------------------------------- Data Structures -------------------------------------
 /*
  * Each edge should contain an identifier for both
@@ -216,6 +217,7 @@ int EdmondsKarp(Graph G, int source, int destination){
 	int q[2 * NETSIZE];		// BFS queue vector
 	int p[2 * NETSIZE];		// Path auxiliary predecessor vector
 	int flow = 0;
+	int print = 0;
 	int i, j;
 	link aux;
 	
@@ -234,11 +236,10 @@ int EdmondsKarp(Graph G, int source, int destination){
 		// Restarting
 		memset(q, -1, 2 * NETSIZE * sizeof(int));
 		memset(p, -1, 2 * NETSIZE * sizeof(int));
-		q[0] = source;
 		
 		// ----------------------- BFS --------------------------------
 		// For every node in the queue
-		for(i = 0, j = 1, aux = NULL; i < j; i++){
+		for(q[0] = source, i = 0, j = 1, aux = NULL; i < j; i++){
 			// For every neighbor of the current node
 			for(aux = G->list[q[i]].n; aux != NULL; aux = aux->next){
 				// If the neighbor wasn't visited (no pred), add to queue
@@ -290,6 +291,9 @@ int EdmondsKarp(Graph G, int source, int destination){
 	// the file with the call of function reset(G)
 	reset(G);
 	
+	// If there is a path and it's the first n-path we print it
+	if(((G->flow[flow] == 0) || VERBOSE) && (flow != 0)) print = 1;
+	
 	// For the statistical component of the assignement, the total number 
 	// of independent paths (alas, the flow) must be stored
 	G->flow[flow]++;
@@ -297,8 +301,8 @@ int EdmondsKarp(Graph G, int source, int destination){
 	// Update flow
 	G->n_flow = flow;
 	
-	// Return (flow != 0) [only 0 when there is no path]
-	return (flow != 0);
+	// Return print [only 1 when new kind of path and we need to print example]
+	return print;
 }
 
 /*
@@ -313,32 +317,52 @@ void findNodes(Graph G, int source, int destination){
 	link aux;
 	
 	// Vector containing nodes to be removed
+	// Initialized with -1
 	nodes = (int *) malloc(G->n_flow * sizeof(int));
 	for(k = 0; k < G->n_flow; k++) nodes[k] = -1;
 	
+	// Preparing to do a BFS search
 	memset(q, -1, 2 * NETSIZE * sizeof(int));
 	memset(p, -1, 2 * NETSIZE * sizeof(int));
 	
-	// BFS
+	// ----------------------- BFS --------------------------------
+	// For every node in the queue
 	for(q[0] = source, i = 0, j = 1, aux = NULL; i < j; i++){
+		// For every neighbor of the current node
 		for(aux = G->list[q[i]].n; aux != NULL; aux = aux->next){
+			// If the neighbor wasn't visited (no pred)
 			if(aux->c && p[aux->id] == -1 && aux->id != source && aux->id != destination){
+				// If the node is contained on a EdmondsKarp path 
+				// computed before (has a predecessor that leads to source)
 				if(G->list[aux->id].pred != -1){
-					// Running through discovered nodes
-					for(k = 0; k < G->n_flow; k++) 
+					// Search the possible removable nodes
+					for(k = 0; k < G->n_flow; k++)
+						// If there is a 'free' space or the node is 
+						// already contained in the list, the node is
+						// added. On the second case it doesn't change
+						// anything but this needs to be checked
 						if(nodes[k] == -1 || nodes[k] == aux->id){
 							nodes[k] = aux->id;
 							break;
-						}
-					if(k == G->n_flow){
-						for(l = G->list[aux->id].pred; l != source; l = G->list[l].pred){
-							for(k = 0; k < G->n_flow; k++)
+						// Else [There is a removable node in the current
+						// vector index]	
+						}else{
+							// Check if the existing node is part of the
+							// independent path on the later node 
+							// [This neighbor node]
+							for(l = G->list[aux->id].pred; l != source; l = G->list[l].pred)
+								// If they are part of the same path and 
+								// this [neighbor] node was discovered 
+								// afterwards, this is the possible
+								// removable node, and not the one in 
+								// the vector. Replace. 
 								if(nodes[k] == l){
 									nodes[k] = aux->id;
 									break;
 								}
 						}
-					}
+				// Else [This neighbor doesn't belong to a path]
+				// Add this node to the BFS queue
 				}else{
 					q[j] = aux->id;
 					p[q[j]] = q[i];
@@ -347,6 +371,7 @@ void findNodes(Graph G, int source, int destination){
 			} 
 		}
 	}
+	// Print the results to the terminal
 	printf("To separate %-3d from %-3d remove nodes (%d paths):\n", source, destination, G->n_flow);
 	for(k = 0; k < G->n_flow; k++) printf("--> %d\n", nodes[k] % NETSIZE);
 	printf("-------------------------------------------------------\n");
@@ -354,6 +379,8 @@ void findNodes(Graph G, int source, int destination){
 	// Reset the paths so that no residual paths may produce  
 	// errors on other iterations 
 	for(i = 0; i < 2 * NETSIZE; i++) G->list[i].pred = -1;
+	
+	// Free allocated memory
 	free(nodes); 
 	
 }
@@ -365,10 +392,8 @@ int main(int argc, char **argv){
 	int source, destination;
 	double elapsed_time;
 	clock_t start, end;
-	
-	int VERBOSE = 0;
 
-	// Obtaining filename from arguments
+	// Parsing arguments
 	switch(argc){
 		case(4):
 			if((sscanf(argv[2], "%d", &source) != 1) || (sscanf(argv[3], "%d", &destination) != 1)){
@@ -389,20 +414,23 @@ int main(int argc, char **argv){
 	// Reading Graph
 	G = readGraph(filename);
 
+	// Printing graphs information
 	printf("-------------------------------------------------------\n");
 	printf("There are %d nodes and %d edges!\n", G->V, G->E);
 	printf("There are %d nodes and %d edges on the 'residual' network!\n", 2*G->V, 4*G->E + 2*G->V);
 	printf("-------------------------------------------------------\n");
 	
+	// If there is a defined pair of nodes only compute its path
 	if(argc == 4){
 		if(EdmondsKarp(G, source, destination + NETSIZE))
 			findNodes(G, source, destination);
+	// Else, compute all of them
 	}else{
 		start = clock();
 		for(source = 0; source < NETSIZE; source++)
 			for(destination = source + 1; destination < NETSIZE; destination++)
 				if(source != destination)
-					if(EdmondsKarp(G, source, destination + NETSIZE) && VERBOSE)
+					if(EdmondsKarp(G, source, destination + NETSIZE))
 						findNodes(G, source, destination);
 				
 		end = clock();
