@@ -294,6 +294,11 @@ int EdmondsKarp(Graph G, int source, int destination){
 	// If there is a path and it's the first n-path we print it
 	if(((G->flow[flow] == 0) || VERBOSE) && (flow != 0)) print = 1;
 	
+	// Reset the paths so that no residual paths may produce  
+	// errors on other iterations 
+	if(!print) 
+		for(i = 0; i < 2 * NETSIZE; i++) G->list[i].pred = -1;
+	
 	// For the statistical component of the assignement, the total number 
 	// of independent paths (alas, the flow) must be stored
 	G->flow[flow]++;
